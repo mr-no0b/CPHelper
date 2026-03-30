@@ -1,0 +1,44 @@
+[
+  {
+    "id": "binary-search",
+    "title": "Binary Search",
+    "explanation": "Binary Search works on sorted answers or sorted arrays by repeatedly checking the middle position.",
+    "difficulty": "Easy",
+    "practiceTip": "Write the low, high, and mid update rules carefully on paper before coding."
+  },
+  {
+    "id": "two-pointers",
+    "title": "Two Pointers",
+    "explanation": "Two Pointers moves two indexes through data to shrink or expand a window efficiently.",
+    "difficulty": "Easy",
+    "practiceTip": "Start with sorted arrays and short examples to understand pointer movement."
+  },
+  {
+    "id": "dfs",
+    "title": "DFS",
+    "explanation": "Depth-First Search explores as far as possible before backtracking in a graph or tree.",
+    "difficulty": "Medium",
+    "practiceTip": "Practice marking visited nodes first so you do not repeat work."
+  },
+  {
+    "id": "bfs",
+    "title": "BFS",
+    "explanation": "Breadth-First Search visits nodes level by level and is useful for shortest paths in unweighted graphs.",
+    "difficulty": "Medium",
+    "practiceTip": "Draw the queue state for a small graph to see why BFS expands in layers."
+  },
+  {
+    "id": "greedy",
+    "title": "Greedy",
+    "explanation": "Greedy algorithms make the best local choice each step and rely on a proof that the choice stays optimal.",
+    "difficulty": "Medium",
+    "practiceTip": "After solving, explain in one sentence why your local choice is safe."
+  },
+  {
+    "id": "dynamic-programming",
+    "title": "Dynamic Programming",
+    "explanation": "Dynamic Programming breaks a problem into smaller states and stores answers to avoid repeated work.",
+    "difficulty": "Hard",
+    "practiceTip": "Define the state meaning clearly before you write any transitions."
+  }
+]
