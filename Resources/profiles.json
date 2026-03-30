@@ -1,0 +1,35 @@
+[
+  {
+    "handle": "tourist",
+    "currentRating": 3797,
+    "maxRating": 3826,
+    "solvedCount": 3941,
+    "strongestTopics": [
+      "greedy",
+      "dynamic programming",
+      "graphs"
+    ]
+  },
+  {
+    "handle": "Benq",
+    "currentRating": 2524,
+    "maxRating": 2564,
+    "solvedCount": 1812,
+    "strongestTopics": [
+      "binary search",
+      "trees",
+      "math"
+    ]
+  },
+  {
+    "handle": "neal",
+    "currentRating": 2718,
+    "maxRating": 2868,
+    "solvedCount": 2234,
+    "strongestTopics": [
+      "data structures",
+      "greedy",
+      "dfs"
+    ]
+  }
+]

@@ -1,0 +1,72 @@
+[
+  {
+    "id": "CF-1368A",
+    "name": "C+= Problem",
+    "rating": 900,
+    "topic": "math",
+    "isSolved": false
+  },
+  {
+    "id": "CF-977B",
+    "name": "Two-gram",
+    "rating": 1000,
+    "topic": "strings",
+    "isSolved": true
+  },
+  {
+    "id": "CF-706B",
+    "name": "Interesting Drink",
+    "rating": 1100,
+    "topic": "binary search",
+    "isSolved": false
+  },
+  {
+    "id": "CF-580A",
+    "name": "Kefa and First Steps",
+    "rating": 900,
+    "topic": "two pointers",
+    "isSolved": false
+  },
+  {
+    "id": "CF-510A",
+    "name": "Fox And Snake",
+    "rating": 900,
+    "topic": "implementation",
+    "isSolved": true
+  },
+  {
+    "id": "CF-520A",
+    "name": "Pangram",
+    "rating": 800,
+    "topic": "strings",
+    "isSolved": false
+  },
+  {
+    "id": "CF-339A",
+    "name": "Helpful Maths",
+    "rating": 800,
+    "topic": "sorting",
+    "isSolved": false
+  },
+  {
+    "id": "CF-231A",
+    "name": "Team",
+    "rating": 800,
+    "topic": "greedy",
+    "isSolved": true
+  },
+  {
+    "id": "CF-499B",
+    "name": "Lecture",
+    "rating": 1000,
+    "topic": "greedy",
+    "isSolved": false
+  },
+  {
+    "id": "CF-580C",
+    "name": "Kefa and Park",
+    "rating": 1400,
+    "topic": "dfs",
+    "isSolved": false
+  }
+]
