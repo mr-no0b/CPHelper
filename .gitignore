@@ -1,0 +1,5 @@
+__MACOSX/
+.codex
+.DS_Store
+xcuserdata/
+*.xcuserstate
