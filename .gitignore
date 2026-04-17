@@ -3,3 +3,5 @@ __MACOSX/
 .DS_Store
 xcuserdata/
 *.xcuserstate
+.env
+CPHelper/LocalSecrets.plist

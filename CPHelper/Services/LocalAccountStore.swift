@@ -148,6 +148,7 @@ actor LocalAccountStore {
             mobileNumber: profile.mobileNumber.trimmingCharacters(in: .whitespacesAndNewlines),
             universityName: profile.universityName.trimmingCharacters(in: .whitespacesAndNewlines),
             handles: profile.handles,
+            contestRegistrations: profile.contestRegistrations,
             todoProblems: profile.todoProblems,
             memberSince: profile.memberSince,
             updatedAt: .now
@@ -182,6 +183,31 @@ actor LocalAccountStore {
     func removeTodoProblem(todoID: String, userEmail: String) throws -> UserProfile {
         try mutateProfile(email: userEmail) { profile in
             profile.todoProblems.removeAll { $0.id == todoID }
+        }
+    }
+
+    func setContestRegistration(
+        contestId: Int,
+        handle: String,
+        isRegistered: Bool,
+        userEmail: String
+    ) throws -> UserProfile {
+        try mutateProfile(email: userEmail) { profile in
+            let normalizedHandle = handle.trimmingCharacters(in: .whitespacesAndNewlines)
+            let updatedRecord = ContestRegistrationRecord(
+                contestId: contestId,
+                handle: normalizedHandle,
+                isRegistered: isRegistered,
+                updatedAt: .now
+            )
+
+            profile.contestRegistrations.removeAll {
+                $0.contestId == contestId
+                    && $0.handle.caseInsensitiveCompare(normalizedHandle) == .orderedSame
+            }
+
+            profile.contestRegistrations.insert(updatedRecord, at: 0)
+            profile.contestRegistrations = profile.contestRegistrations.normalizedContestRegistrations()
         }
     }
 

@@ -1,7 +1,9 @@
 import SwiftUI
 
 struct ContentView: View {
+    @EnvironmentObject private var contestCenter: ContestCenterStore
     @EnvironmentObject private var sessionStore: SessionStore
+    @EnvironmentObject private var tutorialLibrary: TutorialLibraryStore
 
     var body: some View {
         Group {
@@ -25,11 +27,18 @@ struct ContentView: View {
                 AuthView()
             }
         }
+        .task(id: sessionStore.currentUser?.email ?? "guest") {
+            await tutorialLibrary.loadIfNeeded()
+            await contestCenter.refresh(for: sessionStore.currentUser, force: true)
+        }
     }
 }
 
 #Preview {
     ContentView()
         .environmentObject(AppData())
+        .environmentObject(AppRouter())
+        .environmentObject(TutorialLibraryStore())
+        .environmentObject(ContestCenterStore())
         .environmentObject(SessionStore())
 }

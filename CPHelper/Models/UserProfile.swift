@@ -7,6 +7,7 @@ struct UserProfile: Codable, Identifiable, Equatable {
     var mobileNumber: String
     var universityName: String
     var handles: [TrackedHandle]
+    var contestRegistrations: [ContestRegistrationRecord]
     var todoProblems: [TodoProblem]
     var memberSince: Date
     var updatedAt: Date
@@ -18,6 +19,7 @@ struct UserProfile: Codable, Identifiable, Equatable {
         mobileNumber: String,
         universityName: String = "",
         handles: [TrackedHandle] = [],
+        contestRegistrations: [ContestRegistrationRecord] = [],
         todoProblems: [TodoProblem] = [],
         memberSince: Date = .now,
         updatedAt: Date = .now
@@ -28,6 +30,7 @@ struct UserProfile: Codable, Identifiable, Equatable {
         self.mobileNumber = mobileNumber
         self.universityName = universityName
         self.handles = handles.normalizedHandles()
+        self.contestRegistrations = contestRegistrations.normalizedContestRegistrations()
         self.todoProblems = todoProblems.sorted { $0.addedAt > $1.addedAt }
         self.memberSince = memberSince
         self.updatedAt = updatedAt
@@ -57,6 +60,7 @@ struct UserProfile: Codable, Identifiable, Equatable {
         case mobileNumber
         case universityName
         case handles
+        case contestRegistrations
         case todoProblems
         case memberSince
         case updatedAt
@@ -70,6 +74,8 @@ struct UserProfile: Codable, Identifiable, Equatable {
         mobileNumber = try container.decode(String.self, forKey: .mobileNumber)
         universityName = try container.decodeIfPresent(String.self, forKey: .universityName) ?? ""
         handles = (try container.decodeIfPresent([TrackedHandle].self, forKey: .handles) ?? []).normalizedHandles()
+        contestRegistrations = (try container.decodeIfPresent([ContestRegistrationRecord].self, forKey: .contestRegistrations) ?? [])
+            .normalizedContestRegistrations()
         todoProblems = (try container.decodeIfPresent([TodoProblem].self, forKey: .todoProblems) ?? [])
             .sorted { $0.addedAt > $1.addedAt }
         memberSince = try container.decodeIfPresent(Date.self, forKey: .memberSince) ?? .now
@@ -84,9 +90,27 @@ struct UserProfile: Codable, Identifiable, Equatable {
         try container.encode(mobileNumber, forKey: .mobileNumber)
         try container.encode(universityName, forKey: .universityName)
         try container.encode(handles.normalizedHandles(), forKey: .handles)
+        try container.encode(contestRegistrations.normalizedContestRegistrations(), forKey: .contestRegistrations)
         try container.encode(todoProblems.sorted { $0.addedAt > $1.addedAt }, forKey: .todoProblems)
         try container.encode(memberSince, forKey: .memberSince)
         try container.encode(updatedAt, forKey: .updatedAt)
+    }
+
+    func registrationRecord(contestId: Int, handle: String) -> ContestRegistrationRecord? {
+        contestRegistrations.first {
+            $0.contestId == contestId
+                && $0.handle.caseInsensitiveCompare(handle) == .orderedSame
+        }
+    }
+
+    func isRegistered(for contestId: Int, handle: String) -> Bool {
+        registrationRecord(contestId: contestId, handle: handle)?.isRegistered ?? false
+    }
+
+    func unregisteredHandles(for contestId: Int) -> [String] {
+        handles.compactMap { trackedHandle in
+            isRegistered(for: contestId, handle: trackedHandle.handle) ? nil : trackedHandle.handle
+        }
     }
 }
 
@@ -154,5 +178,24 @@ extension Array where Element == TrackedHandle {
             updatedHandle.isPrimary = index == 0
             return updatedHandle
         }
+    }
+}
+
+extension Array where Element == ContestRegistrationRecord {
+    func normalizedContestRegistrations() -> [ContestRegistrationRecord] {
+        var latestByID: [String: ContestRegistrationRecord] = [:]
+
+        for registration in self {
+            let key = registration.id
+            if let existing = latestByID[key] {
+                if registration.updatedAt > existing.updatedAt {
+                    latestByID[key] = registration
+                }
+            } else {
+                latestByID[key] = registration
+            }
+        }
+
+        return latestByID.values.sorted { $0.updatedAt > $1.updatedAt }
     }
 }

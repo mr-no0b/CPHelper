@@ -56,10 +56,19 @@ struct ToolkitView: View {
                             )
                         }
 
+                        NavigationLink(destination: ContestCalendarView()) {
+                            ToolkitCard(
+                                title: "Contest Calendar",
+                                subtitle: "Upcoming Codeforces contests with local registration tracking and reminder timing.",
+                                icon: "calendar.badge.clock",
+                                tint: AppTheme.accentSecondary
+                            )
+                        }
+
                         NavigationLink(destination: TutorialListView()) {
                             ToolkitCard(
                                 title: "Algorithm Tutorials",
-                                subtitle: "Quick refreshers for core techniques and patterns.",
+                                subtitle: "Fetch the full cp-algorithms catalog and open polished in-app tutorial detail pages.",
                                 icon: "book.pages.fill",
                                 tint: AppTheme.accent
                             )

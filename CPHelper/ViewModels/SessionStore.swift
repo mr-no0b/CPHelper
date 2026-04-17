@@ -83,6 +83,24 @@ final class SessionStore: ObservableObject {
         )
     }
 
+    func setContestRegistration(
+        contestId: Int,
+        handle: String,
+        isRegistered: Bool
+    ) async throws {
+        guard let currentUser else { return }
+
+        isWorking = true
+        defer { isWorking = false }
+
+        self.currentUser = try await accountStore.setContestRegistration(
+            contestId: contestId,
+            handle: handle,
+            isRegistered: isRegistered,
+            userEmail: currentUser.email
+        )
+    }
+
     func signOut() async {
         isWorking = true
         await accountStore.signOut()

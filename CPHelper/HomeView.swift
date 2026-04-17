@@ -1,9 +1,10 @@
 import SwiftUI
 
 struct HomeView: View {
+    @EnvironmentObject private var appRouter: AppRouter
+    @EnvironmentObject private var contestCenter: ContestCenterStore
     @EnvironmentObject private var sessionStore: SessionStore
     @State private var handleInput = ""
-    @State private var selectedRoute: HandleRoute?
     @State private var searchHint: String?
 
     var body: some View {
@@ -15,13 +16,11 @@ struct HomeView: View {
                     heroSection
                     quickAnalysisCard
                     trackedHandlesSection
+                    contestPreviewSection
                     workspaceSection
                 }
                 .padding(20)
             }
-        }
-        .navigationDestination(item: $selectedRoute) { route in
-            HandleAnalysisView(handle: route.handle)
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -29,6 +28,56 @@ struct HomeView: View {
                 Text("Home")
                     .font(.system(.headline, design: .rounded).weight(.bold))
                     .foregroundStyle(AppTheme.text)
+            }
+        }
+    }
+
+    private var contestPreviewSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            SectionTitle(
+                title: "Contest radar",
+                subtitle: "Keep the next Codeforces round visible and jump into your reminder-aware contest calendar."
+            )
+
+            if let nextContest = contestCenter.upcomingContests.first {
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack(alignment: .top, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(nextContest.name)
+                                .font(.system(.headline, design: .rounded).weight(.bold))
+                                .foregroundStyle(AppTheme.text)
+
+                            HStack(spacing: 8) {
+                                InfoBadge(title: nextContest.roundBadge, tint: AppTheme.accent)
+                                InfoBadge(title: nextContest.countdownLabel, tint: AppTheme.warm)
+                            }
+                        }
+
+                        Spacer()
+                    }
+
+                    Text("Starts \(nextContest.startDateLabel) • \(contestCenter.registrationSummary(for: nextContest, user: sessionStore.currentUser))")
+                        .font(.system(.subheadline, design: .rounded))
+                        .foregroundStyle(AppTheme.mutedText)
+
+                    Button("Open contest calendar") {
+                        appRouter.openContestCalendar()
+                    }
+                    .buttonStyle(AppPrimaryButtonStyle())
+                }
+                .appCard()
+            } else if contestCenter.isLoading {
+                InlineMessageCard(
+                    icon: "calendar.badge.clock",
+                    title: "Loading contests",
+                    detail: "Fetching upcoming Codeforces rounds and building your reminder timeline."
+                )
+            } else {
+                InlineMessageCard(
+                    icon: "calendar",
+                    title: "No upcoming contests",
+                    detail: "Codeforces is not showing any scheduled rounds right now."
+                )
             }
         }
     }
@@ -174,7 +223,7 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: 16) {
             SectionTitle(
                 title: "Keep building",
-                subtitle: "Open the Codeforces toolkit for suggested problems, weak areas, roadmap guidance, and your persistent todo list."
+                subtitle: "Open the toolkit for suggested problems, weak areas, roadmap guidance, tutorials, contest planning, and your persistent todo list."
             )
 
             NavigationLink(destination: ToolkitView()) {
@@ -202,7 +251,7 @@ struct HomeView: View {
     }
 
     private func openHandle(_ handle: String) {
-        selectedRoute = HandleRoute(handle: handle)
+        appRouter.openHandleAnalysis(handle)
     }
 }
 
@@ -221,6 +270,8 @@ struct HomeView: View {
     return NavigationStack {
         HomeView()
             .environmentObject(AppData())
+            .environmentObject(AppRouter())
+            .environmentObject(ContestCenterStore())
             .environmentObject(session)
     }
 }

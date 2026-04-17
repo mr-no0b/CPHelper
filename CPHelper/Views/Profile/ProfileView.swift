@@ -1,9 +1,9 @@
 import SwiftUI
 
 struct ProfileView: View {
+    @EnvironmentObject private var appRouter: AppRouter
     @EnvironmentObject private var sessionStore: SessionStore
     @State private var isEditing = false
-    @State private var selectedRoute: HandleRoute?
 
     var body: some View {
         ZStack {
@@ -20,9 +20,6 @@ struct ProfileView: View {
                     .padding(20)
                 }
             }
-        }
-        .navigationDestination(item: $selectedRoute) { route in
-            HandleAnalysisView(handle: route.handle)
         }
         .sheet(isPresented: $isEditing) {
             if let user = sessionStore.currentUser {
@@ -130,7 +127,7 @@ struct ProfileView: View {
                         Spacer()
 
                         Button("View analysis") {
-                            selectedRoute = HandleRoute(handle: handle.handle)
+                            appRouter.openHandleAnalysis(handle.handle)
                         }
                         .buttonStyle(AppSecondaryButtonStyle())
                     }
@@ -359,6 +356,7 @@ private struct ProfileEditorSheet: View {
 
     return NavigationStack {
         ProfileView()
+            .environmentObject(AppRouter())
             .environmentObject(session)
     }
 }

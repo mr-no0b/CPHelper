@@ -66,6 +66,7 @@ final class ProfileEditorViewModel: ObservableObject {
             mobileNumber: mobileNumber,
             universityName: universityName,
             handles: handles,
+            contestRegistrations: profile.contestRegistrations,
             todoProblems: profile.todoProblems,
             memberSince: profile.memberSince,
             updatedAt: .now
