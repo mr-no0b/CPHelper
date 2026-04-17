@@ -174,7 +174,7 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: 16) {
             SectionTitle(
                 title: "Keep building",
-                subtitle: "Your older helper tools are still here, now wrapped in the new workspace."
+                subtitle: "Open the Codeforces toolkit for suggested problems, weak areas, roadmap guidance, and your persistent todo list."
             )
 
             NavigationLink(destination: ToolkitView()) {
@@ -184,7 +184,7 @@ struct HomeView: View {
                             .font(.system(.headline, design: .rounded).weight(.bold))
                             .foregroundStyle(AppTheme.text)
 
-                        Text("Problem picker, practice list, and tutorial hub.")
+                        Text("Suggested practice, weak-topic analysis, roadmap, todo list, and tutorial hub.")
                             .font(.system(.subheadline, design: .rounded))
                             .foregroundStyle(AppTheme.mutedText)
                     }

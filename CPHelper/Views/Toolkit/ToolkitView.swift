@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct ToolkitView: View {
+    @EnvironmentObject private var sessionStore: SessionStore
+
     var body: some View {
         ZStack {
             AppBackdrop()
@@ -12,27 +14,45 @@ struct ToolkitView: View {
                             .font(.system(size: 34, weight: .bold, design: .rounded))
                             .foregroundStyle(AppTheme.text)
 
-                        Text("Keep the classic helper tools nearby while the new auth and analysis system handles profiles and live insight.")
+                        Text("Suggested problems, weak-area targeting, rating roadmap guidance, and a todo list built around real Codeforces handles.")
                             .font(.system(.body, design: .rounded))
                             .foregroundStyle(AppTheme.mutedText)
                     }
 
                     VStack(spacing: 16) {
-                        NavigationLink(destination: ProblemPickerView()) {
+                        NavigationLink(destination: SuggestedProblemsView()) {
                             ToolkitCard(
-                                title: "Problem Picker",
-                                subtitle: "Filter local problems and build your next practice queue.",
-                                icon: "scope",
-                                tint: AppTheme.warm
+                                title: "Suggested Problems",
+                                subtitle: "Live Codeforces recommendations based on rating band and solved history.",
+                                icon: "wand.and.stars.inverse",
+                                tint: AppTheme.accent
+                            )
+                        }
+
+                        NavigationLink(destination: WeakAreasView()) {
+                            ToolkitCard(
+                                title: "Weak Areas",
+                                subtitle: "See low-conversion topics and targeted follow-up practice with pie charts.",
+                                icon: "chart.pie.fill",
+                                tint: AppTheme.warning
                             )
                         }
 
                         NavigationLink(destination: PracticeListView()) {
                             ToolkitCard(
-                                title: "Practice List",
-                                subtitle: "Review saved problems and mark practice progress.",
+                                title: "Todo List",
+                                subtitle: "\(sessionStore.currentUser?.todoProblems.count ?? 0) saved Codeforces problems across your tracked handles.",
                                 icon: "checklist.checked",
                                 tint: AppTheme.success
+                            )
+                        }
+
+                        NavigationLink(destination: RoadmapView()) {
+                            ToolkitCard(
+                                title: "Roadmap",
+                                subtitle: "Static training stages for climbing from one rating band to the next.",
+                                icon: "map.fill",
+                                tint: AppTheme.warm
                             )
                         }
 

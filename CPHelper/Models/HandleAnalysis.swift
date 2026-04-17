@@ -7,6 +7,7 @@ struct HandleAnalysis: Identifiable, Equatable {
     let handle: String
     let fetchedAt: Date
     let summary: HandleAnalysisSummary
+    let solvedProblems: [HandleSolvedProblem]
     let verdicts: [VerdictSlice]
     let solvedByRating: [RatingPerformance]
     let acceptanceByRating: [RatingPerformance]
@@ -15,6 +16,14 @@ struct HandleAnalysis: Identifiable, Equatable {
     let weaknesses: [AnalysisInsight]
     let topicPerformance: [TopicPerformance]
     let monthlyActivity: [MonthlyActivity]
+
+    var solvedProblemIDs: Set<String> {
+        Set(solvedProblems.map(\.id))
+    }
+
+    var effectiveCurrentRating: Int {
+        summary.currentRating ?? summary.maxRating ?? 800
+    }
 }
 
 struct HandleAnalysisSummary: Equatable {
@@ -32,6 +41,18 @@ struct HandleAnalysisSummary: Equatable {
     let mostProductiveTag: String?
     let lastActiveDate: Date?
     let avatarURL: URL?
+}
+
+struct HandleSolvedProblem: Identifiable, Equatable, Hashable {
+    let contestId: Int
+    let index: String
+    let name: String
+    let rating: Int?
+    let tags: [String]
+
+    var id: String {
+        "\(contestId)-\(index)"
+    }
 }
 
 struct VerdictSlice: Identifiable, Equatable {

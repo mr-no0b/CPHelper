@@ -148,6 +148,7 @@ actor LocalAccountStore {
             mobileNumber: profile.mobileNumber.trimmingCharacters(in: .whitespacesAndNewlines),
             universityName: profile.universityName.trimmingCharacters(in: .whitespacesAndNewlines),
             handles: profile.handles,
+            todoProblems: profile.todoProblems,
             memberSince: profile.memberSince,
             updatedAt: .now
         )
@@ -166,6 +167,24 @@ actor LocalAccountStore {
         return updatedProfile
     }
 
+    func addTodoProblem(_ problem: CodeforcesProblem, for handle: String, userEmail: String) throws -> UserProfile {
+        try mutateProfile(email: userEmail) { profile in
+            let todoItem = TodoProblem(handle: handle, problem: problem)
+
+            guard !profile.todoProblems.contains(where: { $0.id == todoItem.id }) else {
+                return
+            }
+
+            profile.todoProblems.insert(todoItem, at: 0)
+        }
+    }
+
+    func removeTodoProblem(todoID: String, userEmail: String) throws -> UserProfile {
+        try mutateProfile(email: userEmail) { profile in
+            profile.todoProblems.removeAll { $0.id == todoID }
+        }
+    }
+
     private func loadAccounts() throws -> [StoredAccount] {
         let url = try accountsFileURL()
 
@@ -181,6 +200,27 @@ actor LocalAccountStore {
         let url = try accountsFileURL()
         let data = try encoder.encode(accounts)
         try data.write(to: url, options: .atomic)
+    }
+
+    private func mutateProfile(
+        email: String,
+        mutation: (inout UserProfile) -> Void
+    ) throws -> UserProfile {
+        var accounts = try loadAccounts()
+        let normalizedEmail = normalizeEmail(email)
+
+        guard let index = accounts.firstIndex(where: { $0.email == normalizedEmail }) else {
+            throw AccountStoreError.accountNotFound
+        }
+
+        var updatedProfile = accounts[index].profile
+        mutation(&updatedProfile)
+        updatedProfile.updatedAt = .now
+
+        accounts[index].profile = updatedProfile
+        try saveAccounts(accounts)
+        UserDefaults.standard.set(normalizedEmail, forKey: sessionKey)
+        return updatedProfile
     }
 
     private func accountsFileURL() throws -> URL {

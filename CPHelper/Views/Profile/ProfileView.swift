@@ -91,6 +91,7 @@ struct ProfileView: View {
 
             ProfileDetailRow(title: "Mobile", value: user.mobileNumber)
             ProfileDetailRow(title: "University", value: user.universityName.isEmpty ? "Not added" : user.universityName)
+            ProfileDetailRow(title: "Todo problems", value: "\(user.todoProblems.count)")
             ProfileDetailRow(title: "Member since", value: DateFormatting.mediumDate.string(from: user.memberSince))
         }
         .appCard()

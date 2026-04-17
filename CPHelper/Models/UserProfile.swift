@@ -7,6 +7,7 @@ struct UserProfile: Codable, Identifiable, Equatable {
     var mobileNumber: String
     var universityName: String
     var handles: [TrackedHandle]
+    var todoProblems: [TodoProblem]
     var memberSince: Date
     var updatedAt: Date
 
@@ -17,6 +18,7 @@ struct UserProfile: Codable, Identifiable, Equatable {
         mobileNumber: String,
         universityName: String = "",
         handles: [TrackedHandle] = [],
+        todoProblems: [TodoProblem] = [],
         memberSince: Date = .now,
         updatedAt: Date = .now
     ) {
@@ -26,6 +28,7 @@ struct UserProfile: Codable, Identifiable, Equatable {
         self.mobileNumber = mobileNumber
         self.universityName = universityName
         self.handles = handles.normalizedHandles()
+        self.todoProblems = todoProblems.sorted { $0.addedAt > $1.addedAt }
         self.memberSince = memberSince
         self.updatedAt = updatedAt
     }
@@ -45,6 +48,45 @@ struct UserProfile: Codable, Identifiable, Equatable {
         }
 
         return parts.joined()
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case email
+        case fullName
+        case mobileNumber
+        case universityName
+        case handles
+        case todoProblems
+        case memberSince
+        case updatedAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        email = try container.decode(String.self, forKey: .email)
+        fullName = try container.decode(String.self, forKey: .fullName)
+        mobileNumber = try container.decode(String.self, forKey: .mobileNumber)
+        universityName = try container.decodeIfPresent(String.self, forKey: .universityName) ?? ""
+        handles = (try container.decodeIfPresent([TrackedHandle].self, forKey: .handles) ?? []).normalizedHandles()
+        todoProblems = (try container.decodeIfPresent([TodoProblem].self, forKey: .todoProblems) ?? [])
+            .sorted { $0.addedAt > $1.addedAt }
+        memberSince = try container.decodeIfPresent(Date.self, forKey: .memberSince) ?? .now
+        updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? .now
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(email, forKey: .email)
+        try container.encode(fullName, forKey: .fullName)
+        try container.encode(mobileNumber, forKey: .mobileNumber)
+        try container.encode(universityName, forKey: .universityName)
+        try container.encode(handles.normalizedHandles(), forKey: .handles)
+        try container.encode(todoProblems.sorted { $0.addedAt > $1.addedAt }, forKey: .todoProblems)
+        try container.encode(memberSince, forKey: .memberSince)
+        try container.encode(updatedAt, forKey: .updatedAt)
     }
 }
 

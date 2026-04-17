@@ -58,6 +58,31 @@ final class SessionStore: ObservableObject {
         currentUser = try await accountStore.updateProfile(profile)
     }
 
+    func addTodoProblem(_ problem: CodeforcesProblem, for handle: String) async throws {
+        guard let currentUser else { return }
+
+        isWorking = true
+        defer { isWorking = false }
+
+        self.currentUser = try await accountStore.addTodoProblem(
+            problem,
+            for: handle,
+            userEmail: currentUser.email
+        )
+    }
+
+    func removeTodoProblem(todoID: String) async throws {
+        guard let currentUser else { return }
+
+        isWorking = true
+        defer { isWorking = false }
+
+        self.currentUser = try await accountStore.removeTodoProblem(
+            todoID: todoID,
+            userEmail: currentUser.email
+        )
+    }
+
     func signOut() async {
         isWorking = true
         await accountStore.signOut()

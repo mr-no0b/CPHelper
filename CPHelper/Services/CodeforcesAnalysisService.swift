@@ -83,13 +83,17 @@ actor CodeforcesAnalysisService {
 
     private let session: URLSession
     private let decoder = JSONDecoder()
+    private let requestGate: CodeforcesRequestGate
 
-    private var lastRequestTime: Date?
     private var contestNameCache: [Int: String]?
     private var analysisCache: [String: HandleAnalysis] = [:]
 
-    init(session: URLSession = .shared) {
+    init(
+        session: URLSession = .shared,
+        requestGate: CodeforcesRequestGate = .shared
+    ) {
         self.session = session
+        self.requestGate = requestGate
     }
 
     func loadAnalysis(for rawHandle: String, forceRefresh: Bool = false) async throws -> HandleAnalysis {
@@ -157,7 +161,7 @@ actor CodeforcesAnalysisService {
         method: String,
         queryItems: [URLQueryItem]
     ) async throws -> ResponseType {
-        try await throttleRequests()
+        try await requestGate.waitIfNeeded()
 
         guard var components = URLComponents(string: "https://codeforces.com/api/\(method)") else {
             throw CodeforcesError.invalidURL
@@ -186,20 +190,6 @@ actor CodeforcesAnalysisService {
         }
 
         return result
-    }
-
-    private func throttleRequests() async throws {
-        let minimumDelay = 2.15
-
-        if let lastRequestTime {
-            let elapsed = Date().timeIntervalSince(lastRequestTime)
-            if elapsed < minimumDelay {
-                let sleepNanoseconds = UInt64((minimumDelay - elapsed) * 1_000_000_000)
-                try await Task.sleep(nanoseconds: sleepNanoseconds)
-            }
-        }
-
-        lastRequestTime = Date()
     }
 
     private func buildAnalysis(
@@ -295,10 +285,32 @@ actor CodeforcesAnalysisService {
             roundTypePerformance: roundTypePerformance
         )
 
+        let solvedProblemSummaries = solvedProblemValues.compactMap { submission -> HandleSolvedProblem? in
+            guard let contestId = submission.problem.contestId ?? submission.contestId,
+                  let index = submission.problem.index else {
+                return nil
+            }
+
+            return HandleSolvedProblem(
+                contestId: contestId,
+                index: index,
+                name: submission.problem.name,
+                rating: submission.problem.rating,
+                tags: submission.problem.tags ?? []
+            )
+        }
+        .sorted { lhs, rhs in
+            if lhs.contestId == rhs.contestId {
+                return lhs.index < rhs.index
+            }
+            return lhs.contestId < rhs.contestId
+        }
+
         return HandleAnalysis(
             handle: user.handle,
             fetchedAt: .now,
             summary: summary,
+            solvedProblems: solvedProblemSummaries,
             verdicts: verdicts,
             solvedByRating: solvedByRating,
             acceptanceByRating: acceptanceByRating,
