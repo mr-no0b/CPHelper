@@ -17,32 +17,36 @@ struct ProblemPickerView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                filterCard
+        ZStack {
+            AppBackdrop()
 
-                if let problem = recommendedProblem {
-                    recommendationCard(problem: problem)
-                }
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 20) {
+                    filterCard
 
-                Text("Problems")
-                    .font(.title3)
-                    .fontWeight(.semibold)
+                    if let problem = recommendedProblem {
+                        recommendationCard(problem: problem)
+                    }
 
-                VStack(spacing: 14) {
-                    if filteredProblems.isEmpty {
-                        emptyStateCard
-                    } else {
-                        ForEach(filteredProblems) { problem in
-                            problemCard(problem: problem)
+                    Text("Problems")
+                        .font(.appSection)
+                        .foregroundStyle(AppTheme.text)
+
+                    VStack(spacing: 14) {
+                        if filteredProblems.isEmpty {
+                            emptyStateCard
+                        } else {
+                            ForEach(filteredProblems) { problem in
+                                problemCard(problem: problem)
+                            }
                         }
                     }
                 }
+                .padding(20)
             }
-            .padding()
         }
-        .background(Color(.systemGroupedBackground))
         .navigationTitle("Problem Picker")
+        .navigationBarTitleDisplayMode(.inline)
     }
 
     private var filterCard: some View {
@@ -51,13 +55,10 @@ struct ProblemPickerView: View {
                 .font(.headline)
 
             TextField("Example: dp, graphs, binary search", text: $topicSearch)
-                .padding(12)
-                .background(
-                    RoundedRectangle(cornerRadius: 14)
-                        .fill(Color(.systemBackground))
-                )
+                .appInputField()
 
             Toggle("Show only unsolved problems", isOn: $showOnlyUnsolved)
+                .tint(AppTheme.accent)
 
             Button {
                 recommendedProblem = filteredProblems
@@ -66,18 +67,10 @@ struct ProblemPickerView: View {
                     .first
             } label: {
                 Text("Pick Recommended Problem")
-                    .fontWeight(.semibold)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(Color.orange, in: RoundedRectangle(cornerRadius: 14))
-                    .foregroundStyle(.white)
             }
+            .buttonStyle(AppPrimaryButtonStyle())
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(Color(.secondarySystemBackground))
-        )
+        .appCard()
     }
 
     private func recommendationCard(problem: PracticeProblem) -> some View {
@@ -102,22 +95,11 @@ struct ProblemPickerView: View {
                 appData.saveProblem(problem)
             } label: {
                 Text(appData.isSaved(problem) ? "Saved to Practice List" : "Save to Practice List")
-                    .fontWeight(.semibold)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .background(
-                        appData.isSaved(problem) ? Color.green.opacity(0.2) : Color.blue,
-                        in: RoundedRectangle(cornerRadius: 12)
-                    )
-                    .foregroundStyle(appData.isSaved(problem) ? Color.green : Color.white)
             }
+            .buttonStyle(AppSecondaryButtonStyle())
             .disabled(appData.isSaved(problem))
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(Color.yellow.opacity(0.14))
-        )
+        .appCard()
     }
 
     private func problemCard(problem: PracticeProblem) -> some View {
@@ -158,22 +140,11 @@ struct ProblemPickerView: View {
                 appData.saveProblem(problem)
             } label: {
                 Text(appData.isSaved(problem) ? "Already Saved" : "Save for Practice")
-                    .fontWeight(.semibold)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .background(
-                        appData.isSaved(problem) ? Color.gray.opacity(0.15) : Color.blue,
-                        in: RoundedRectangle(cornerRadius: 12)
-                    )
-                    .foregroundStyle(appData.isSaved(problem) ? Color.secondary : Color.white)
             }
+            .buttonStyle(AppSecondaryButtonStyle())
             .disabled(appData.isSaved(problem))
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 18)
-                .fill(Color(.secondarySystemBackground))
-        )
+        .appCard()
     }
 
     private var emptyStateCard: some View {
@@ -191,11 +162,7 @@ struct ProblemPickerView: View {
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 18)
-                .fill(Color(.secondarySystemBackground))
-        )
+        .appCard()
     }
 }
 

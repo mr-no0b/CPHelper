@@ -6,32 +6,35 @@ struct TutorialDetailView: View {
     let tutorial: AlgorithmTutorial
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(tutorial.title)
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
+        ZStack {
+            AppBackdrop()
 
-                    Label("Difficulty: \(tutorial.difficulty)", systemImage: "graduationcap.fill")
-                        .foregroundStyle(.secondary)
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 18) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(tutorial.title)
+                            .font(.system(size: 34, weight: .bold, design: .rounded))
+                            .foregroundStyle(AppTheme.text)
+
+                        Label("Difficulty: \(tutorial.difficulty)", systemImage: "graduationcap.fill")
+                            .foregroundStyle(AppTheme.mutedText)
+                    }
+
+                    tutorialCard(
+                        title: "Short Explanation",
+                        iconName: "lightbulb.fill",
+                        text: tutorial.explanation
+                    )
+
+                    tutorialCard(
+                        title: "Practice Tip",
+                        iconName: "target",
+                        text: tutorial.practiceTip
+                    )
                 }
-
-                tutorialCard(
-                    title: "Short Explanation",
-                    iconName: "lightbulb.fill",
-                    text: tutorial.explanation
-                )
-
-                tutorialCard(
-                    title: "Practice Tip",
-                    iconName: "target",
-                    text: tutorial.practiceTip
-                )
+                .padding(20)
             }
-            .padding()
         }
-        .background(Color(.systemGroupedBackground))
         .navigationTitle(tutorial.title)
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -43,14 +46,10 @@ struct TutorialDetailView: View {
 
             Text(text)
                 .font(.body)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppTheme.mutedText)
         }
-        .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(Color(.secondarySystemBackground))
-        )
+        .appCard()
     }
 }
 

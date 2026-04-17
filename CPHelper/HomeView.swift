@@ -1,126 +1,226 @@
 import SwiftUI
 
 struct HomeView: View {
+    @EnvironmentObject private var sessionStore: SessionStore
+    @State private var handleInput = ""
+    @State private var selectedRoute: HandleRoute?
+    @State private var searchHint: String?
+
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    headerSection
+        ZStack {
+            AppBackdrop()
 
-                    VStack(spacing: 16) {
-                        NavigationLink(destination: ProfileTrackerView()) {
-                            DashboardCard(
-                                title: "Profile Tracker",
-                                subtitle: "Load a sample Codeforces profile summary.",
-                                iconName: "person.crop.circle.fill",
-                                tintColor: .blue
-                            )
-                        }
-
-                        NavigationLink(destination: ProblemPickerView()) {
-                            DashboardCard(
-                                title: "Problem Picker",
-                                subtitle: "Filter local problems and get a recommendation.",
-                                iconName: "list.bullet.clipboard.fill",
-                                tintColor: .orange
-                            )
-                        }
-
-                        NavigationLink(destination: PracticeListView()) {
-                            DashboardCard(
-                                title: "Practice List",
-                                subtitle: "Review saved problems and mark practice done.",
-                                iconName: "list.bullet.rectangle.portrait.fill",
-                                tintColor: .green
-                            )
-                        }
-
-                        NavigationLink(destination: TutorialListView()) {
-                            DashboardCard(
-                                title: "Algorithm Tutorials",
-                                subtitle: "Read short topic notes for core techniques.",
-                                iconName: "book.closed.fill",
-                                tintColor: .purple
-                            )
-                        }
-                    }
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 20) {
+                    heroSection
+                    quickAnalysisCard
+                    trackedHandlesSection
+                    workspaceSection
                 }
-                .padding()
+                .padding(20)
             }
-            .background(Color(.systemGroupedBackground))
-            .navigationTitle("Dashboard")
+        }
+        .navigationDestination(item: $selectedRoute) { route in
+            HandleAnalysisView(handle: route.handle)
+        }
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Text("Home")
+                    .font(.system(.headline, design: .rounded).weight(.bold))
+                    .foregroundStyle(AppTheme.text)
+            }
         }
     }
 
-    private var headerSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Competitive Programming Helper")
-                .font(.largeTitle)
-                .fontWeight(.bold)
+    private var heroSection: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("Welcome back, \(sessionStore.currentUser?.fullName.components(separatedBy: " ").first ?? "coder").")
+                .font(.system(size: 34, weight: .bold, design: .rounded))
+                .foregroundStyle(AppTheme.text)
 
-            Text("Track progress and practice smarter")
-                .font(.headline)
-                .foregroundStyle(.secondary)
+            Text("Search any Codeforces handle, revisit your tracked profiles, and keep the rest of the helper tools one tap away.")
+                .font(.system(.body, design: .rounded))
+                .foregroundStyle(AppTheme.mutedText)
 
-            HStack(spacing: 12) {
-                Image(systemName: "bolt.shield.fill")
-                    .font(.system(size: 28))
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(spacing: 10) {
+                    MetricChip(title: "Tracked", value: "\(sessionStore.currentUser?.handles.count ?? 0)")
+                    MetricChip(title: "Default", value: sessionStore.currentUser?.primaryHandle ?? "None")
+                }
+
+                HStack(spacing: 10) {
+                    MetricChip(
+                        title: "Member since",
+                        value: sessionStore.currentUser.map {
+                            DateFormatting.mediumDate.string(from: $0.memberSince)
+                        } ?? "Today"
+                    )
+                    MetricChip(title: "Analysis", value: "Live CF")
+                }
+            }
+
+            if let primaryHandle = sessionStore.currentUser?.primaryHandle {
+                HStack(spacing: 12) {
+                    Text("Primary handle: \(primaryHandle)")
+                        .font(.system(.subheadline, design: .rounded).weight(.semibold))
+                        .foregroundStyle(.white)
+
+                    Spacer()
+
+                    Button("Open analysis") {
+                        openHandle(primaryHandle)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.white.opacity(0.20))
                     .foregroundStyle(.white)
-                    .frame(width: 56, height: 56)
-                    .background(Color.blue.gradient, in: RoundedRectangle(cornerRadius: 16))
-
-                Text("A clean student-friendly dashboard for profile tracking, problem practice, and quick algorithm notes.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                }
+                .padding(18)
+                .background(
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .fill(AppTheme.heroGradient)
+                )
             }
-            .padding()
-            .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(Color(.secondarySystemBackground))
-            )
         }
     }
-}
 
-private struct DashboardCard: View {
-    let title: String
-    let subtitle: String
-    let iconName: String
-    let tintColor: Color
+    private var quickAnalysisCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            SectionTitle(
+                title: "Handle analysis",
+                subtitle: "Type any public Codeforces handle and jump into a full breakdown."
+            )
 
-    var body: some View {
-        HStack(spacing: 16) {
-            Image(systemName: iconName)
-                .font(.system(size: 24))
-                .foregroundStyle(tintColor)
-                .frame(width: 56, height: 56)
-                .background(tintColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))
+            TextField("Enter a handle like tourist", text: $handleInput)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .appInputField()
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text(title)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-
-                Text(subtitle)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.leading)
+            if let searchHint {
+                Text(searchHint)
+                    .font(.system(.footnote, design: .rounded))
+                    .foregroundStyle(Color(red: 0.74, green: 0.24, blue: 0.22))
             }
 
-            Spacer()
+            Button("Analyze handle") {
+                let normalized = handleInput.trimmingCharacters(in: .whitespacesAndNewlines)
 
-            Image(systemName: "chevron.right")
-                .foregroundStyle(.tertiary)
+                guard !normalized.isEmpty else {
+                    searchHint = "Please enter a Codeforces handle."
+                    return
+                }
+
+                searchHint = nil
+                openHandle(normalized)
+            }
+            .buttonStyle(AppPrimaryButtonStyle())
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(Color(.secondarySystemBackground))
-        )
+        .appCard()
+    }
+
+    private var trackedHandlesSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            SectionTitle(
+                title: "Tracked handles",
+                subtitle: "These are pinned to your profile for one-tap access."
+            )
+
+            if let handles = sessionStore.currentUser?.handles, !handles.isEmpty {
+                ForEach(handles) { handle in
+                    HStack(spacing: 14) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(spacing: 8) {
+                                Text(handle.handle)
+                                    .font(.system(.headline, design: .rounded).weight(.bold))
+                                    .foregroundStyle(AppTheme.text)
+
+                                if handle.isPrimary {
+                                    InfoBadge(title: "Primary", tint: AppTheme.accent)
+                                }
+                            }
+
+                            if !handle.label.isEmpty {
+                                Text(handle.label)
+                                    .font(.system(.subheadline, design: .rounded))
+                                    .foregroundStyle(AppTheme.mutedText)
+                            }
+                        }
+
+                        Spacer()
+
+                        Button("View analysis") {
+                            openHandle(handle.handle)
+                        }
+                        .buttonStyle(AppSecondaryButtonStyle())
+                    }
+                    .appCard()
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("No handles added yet.")
+                        .font(.system(.headline, design: .rounded).weight(.bold))
+                        .foregroundStyle(AppTheme.text)
+
+                    Text("Open the Profile tab to add your Codeforces handles and start tracking them.")
+                        .font(.system(.subheadline, design: .rounded))
+                        .foregroundStyle(AppTheme.mutedText)
+                }
+                .appCard()
+            }
+        }
+    }
+
+    private var workspaceSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            SectionTitle(
+                title: "Keep building",
+                subtitle: "Your older helper tools are still here, now wrapped in the new workspace."
+            )
+
+            NavigationLink(destination: ToolkitView()) {
+                HStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Open toolkit")
+                            .font(.system(.headline, design: .rounded).weight(.bold))
+                            .foregroundStyle(AppTheme.text)
+
+                        Text("Problem picker, practice list, and tutorial hub.")
+                            .font(.system(.subheadline, design: .rounded))
+                            .foregroundStyle(AppTheme.mutedText)
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "arrow.right.circle.fill")
+                        .font(.system(size: 26))
+                        .foregroundStyle(AppTheme.accent)
+                }
+                .appCard()
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func openHandle(_ handle: String) {
+        selectedRoute = HandleRoute(handle: handle)
     }
 }
 
 #Preview {
-    HomeView()
-        .environmentObject(AppData())
+    let session = SessionStore(previewUser: UserProfile(
+        email: "demo@example.com",
+        fullName: "Demo User",
+        mobileNumber: "+8801000000000",
+        universityName: "Demo University",
+        handles: [
+            TrackedHandle(handle: "tourist", label: "Main", isPrimary: true),
+            TrackedHandle(handle: "Benq", label: "Reference")
+        ]
+    ))
+
+    return NavigationStack {
+        HomeView()
+            .environmentObject(AppData())
+            .environmentObject(session)
+    }
 }

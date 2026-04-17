@@ -5,28 +5,47 @@ struct TutorialListView: View {
     @EnvironmentObject private var appData: AppData
 
     var body: some View {
-        List(appData.tutorials) { tutorial in
-            NavigationLink(destination: TutorialDetailView(tutorial: tutorial)) {
-                HStack(spacing: 14) {
-                    Image(systemName: "book.pages.fill")
-                        .foregroundStyle(.purple)
-                        .frame(width: 40, height: 40)
-                        .background(Color.purple.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+        ZStack {
+            AppBackdrop()
 
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(tutorial.title)
-                            .font(.headline)
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 14) {
+                    ForEach(appData.tutorials) { tutorial in
+                        NavigationLink(destination: TutorialDetailView(tutorial: tutorial)) {
+                            HStack(spacing: 14) {
+                                Image(systemName: "book.pages.fill")
+                                    .foregroundStyle(AppTheme.accent)
+                                    .frame(width: 48, height: 48)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                            .fill(AppTheme.accent.opacity(0.12))
+                                    )
 
-                        Text("Difficulty: \(tutorial.difficulty)")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(tutorial.title)
+                                        .font(.system(.headline, design: .rounded).weight(.bold))
+                                        .foregroundStyle(AppTheme.text)
+
+                                    Text("Difficulty: \(tutorial.difficulty)")
+                                        .font(.system(.subheadline, design: .rounded))
+                                        .foregroundStyle(AppTheme.mutedText)
+                                }
+
+                                Spacer()
+
+                                Image(systemName: "arrow.right")
+                                    .foregroundStyle(AppTheme.mutedText)
+                            }
+                            .appCard()
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
-                .padding(.vertical, 6)
+                .padding(20)
             }
         }
-        .listStyle(.insetGrouped)
         .navigationTitle("Tutorials")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

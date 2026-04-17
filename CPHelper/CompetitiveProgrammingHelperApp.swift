@@ -2,13 +2,14 @@ import SwiftUI
 
 @main
 struct CompetitiveProgrammingHelperApp: App {
-    // Shared app state for problems, tutorials, and practice progress.
     @StateObject private var appData = AppData()
+    @StateObject private var sessionStore = SessionStore()
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environmentObject(appData)
+                .environmentObject(sessionStore)
         }
     }
 }
