@@ -36,7 +36,6 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
-        .environmentObject(AppData())
         .environmentObject(AppRouter())
         .environmentObject(TutorialLibraryStore())
         .environmentObject(ContestCenterStore())

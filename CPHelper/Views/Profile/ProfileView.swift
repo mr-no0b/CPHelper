@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct ProfileView: View {
-    @EnvironmentObject private var appRouter: AppRouter
     @EnvironmentObject private var sessionStore: SessionStore
     @State private var isEditing = false
 
@@ -11,11 +10,10 @@ struct ProfileView: View {
 
             if let user = sessionStore.currentUser {
                 ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 20) {
+                    VStack(alignment: .leading, spacing: 18) {
                         profileHeader(user: user)
-                        profileDetails(user: user)
-                        handlesSection(user: user)
-                        signOutSection
+                        detailsCard(user: user)
+                        signOutCard
                     }
                     .padding(20)
                 }
@@ -38,17 +36,13 @@ struct ProfileView: View {
     }
 
     private func profileHeader(user: UserProfile) -> some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .top, spacing: 16) {
-                ZStack {
-                    Circle()
-                        .fill(AppTheme.heroGradient)
-                        .frame(width: 74, height: 74)
-
-                    Text(user.initials)
-                        .font(.system(.title2, design: .rounded).weight(.bold))
-                        .foregroundStyle(.white)
-                }
+                AvatarView(
+                    title: user.initials,
+                    imageURL: user.profileImageURL,
+                    size: 78
+                )
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text(user.fullName)
@@ -60,18 +54,18 @@ struct ProfileView: View {
                         .foregroundStyle(AppTheme.mutedText)
 
                     HStack(spacing: 8) {
-                        InfoBadge(title: "\(user.handles.count) handles", tint: AppTheme.accent)
-
-                        if let primaryHandle = user.primaryHandle {
-                            InfoBadge(title: primaryHandle, tint: AppTheme.accentSecondary)
+                        if let primaryHandle = user.primaryHandle, !primaryHandle.isEmpty {
+                            InfoBadge(title: "@\(primaryHandle)", tint: AppTheme.accent)
                         }
+
+                        InfoBadge(title: "\(user.friends.count) friends", tint: AppTheme.accentSecondary)
                     }
                 }
 
                 Spacer()
             }
 
-            Button("Edit profile") {
+            Button("Edit Profile") {
                 isEditing = true
             }
             .buttonStyle(AppPrimaryButtonStyle())
@@ -79,92 +73,38 @@ struct ProfileView: View {
         .appCard()
     }
 
-    private func profileDetails(user: UserProfile) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            SectionTitle(
-                title: "Account details",
-                subtitle: "Core personal info used across the app."
-            )
+    private func detailsCard(user: UserProfile) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            SectionTitle(title: "Details", subtitle: "Account")
 
-            ProfileDetailRow(title: "Mobile", value: user.mobileNumber)
-            ProfileDetailRow(title: "University", value: user.universityName.isEmpty ? "Not added" : user.universityName)
-            ProfileDetailRow(title: "Todo problems", value: "\(user.todoProblems.count)")
-            ProfileDetailRow(title: "Member since", value: DateFormatting.mediumDate.string(from: user.memberSince))
+            detailRow(title: "Mobile", value: user.mobileNumber)
+            detailRow(title: "University", value: user.universityName.isEmpty ? "Not added" : user.universityName)
+            detailRow(title: "Primary handle", value: user.primaryHandle ?? "Not set")
+            detailRow(title: "Member since", value: DateFormatting.mediumDate.string(from: user.memberSince))
+            detailRow(title: "Saved problems", value: "\(user.todoProblems.count)")
         }
         .appCard()
     }
 
-    private func handlesSection(user: UserProfile) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            SectionTitle(
-                title: "Tracked handles",
-                subtitle: "Each handle has a direct analysis entry point."
-            )
-
-            if user.handles.isEmpty {
-                Text("No handles added yet. Tap edit profile to add one or more Codeforces handles.")
-                    .font(.system(.subheadline, design: .rounded))
-                    .foregroundStyle(AppTheme.mutedText)
-            } else {
-                ForEach(user.handles) { handle in
-                    HStack(spacing: 12) {
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack(spacing: 8) {
-                                Text(handle.handle)
-                                    .font(.system(.headline, design: .rounded).weight(.bold))
-                                    .foregroundStyle(AppTheme.text)
-
-                                if handle.isPrimary {
-                                    InfoBadge(title: "Primary", tint: AppTheme.accent)
-                                }
-                            }
-
-                            Text(handle.label.isEmpty ? "Tracked handle" : handle.label)
-                                .font(.system(.subheadline, design: .rounded))
-                                .foregroundStyle(AppTheme.mutedText)
-                        }
-
-                        Spacer()
-
-                        Button("View analysis") {
-                            appRouter.openHandleAnalysis(handle.handle)
-                        }
-                        .buttonStyle(AppSecondaryButtonStyle())
-                    }
-                    .padding(.vertical, 4)
-                }
-            }
-        }
-        .appCard()
-    }
-
-    private var signOutSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            SectionTitle(
-                title: "Session",
-                subtitle: "Use this if you want to switch to another local account."
-            )
+    private var signOutCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            SectionTitle(title: "Session", subtitle: "Account")
 
             Button(role: .destructive) {
                 Task {
                     await sessionStore.signOut()
                 }
             } label: {
-                Text("Sign out")
+                Text("Sign Out")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(AppPrimaryButtonStyle())
         }
         .appCard()
     }
-}
 
-private struct ProfileDetailRow: View {
-    let title: String
-    let value: String
-
-    var body: some View {
-        HStack(alignment: .top) {
+    private func detailRow(title: String, value: String) -> some View {
+        HStack {
             Text(title)
                 .font(.system(.subheadline, design: .rounded).weight(.semibold))
                 .foregroundStyle(AppTheme.mutedText)
@@ -172,7 +112,7 @@ private struct ProfileDetailRow: View {
             Spacer()
 
             Text(value)
-                .font(.system(.body, design: .rounded).weight(.medium))
+                .font(.system(.subheadline, design: .rounded).weight(.medium))
                 .foregroundStyle(AppTheme.text)
                 .multilineTextAlignment(.trailing)
         }
@@ -195,20 +135,13 @@ private struct ProfileEditorSheet: View {
                 AppBackdrop()
 
                 ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 20) {
-                        profileFields
-                        handleManager
+                    VStack(alignment: .leading, spacing: 18) {
+                        fields
 
                         if let errorMessage = viewModel.errorMessage {
                             Text(errorMessage)
-                                .font(.system(.subheadline, design: .rounded))
-                                .foregroundStyle(Color(red: 0.76, green: 0.21, blue: 0.21))
-                                .padding(14)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                        .fill(Color.red.opacity(0.08))
-                                )
+                                .font(.system(.footnote, design: .rounded))
+                                .foregroundStyle(Color(red: 0.76, green: 0.21, blue: 0.22))
                         }
                     }
                     .padding(20)
@@ -242,13 +175,8 @@ private struct ProfileEditorSheet: View {
         }
     }
 
-    private var profileFields: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            SectionTitle(
-                title: "Profile info",
-                subtitle: "Update the account information shown across the app."
-            )
-
+    private var fields: some View {
+        VStack(alignment: .leading, spacing: 14) {
             TextField("Full name", text: $viewModel.fullName)
                 .appInputField()
 
@@ -256,80 +184,25 @@ private struct ProfileEditorSheet: View {
                 .keyboardType(.phonePad)
                 .appInputField()
 
-            TextField("University name", text: $viewModel.universityName)
+            TextField("University", text: $viewModel.universityName)
                 .appInputField()
-        }
-        .appCard()
-    }
 
-    private var handleManager: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            SectionTitle(
-                title: "Handle manager",
-                subtitle: "Add multiple handles, set a primary one, or remove old entries."
-            )
-
-            ForEach(viewModel.handles) { handle in
-                HStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 8) {
-                            Text(handle.handle)
-                                .font(.system(.headline, design: .rounded).weight(.bold))
-                                .foregroundStyle(AppTheme.text)
-
-                            if handle.isPrimary {
-                                InfoBadge(title: "Primary", tint: AppTheme.accent)
-                            }
-                        }
-
-                        Text(handle.label.isEmpty ? "No custom label" : handle.label)
-                            .font(.system(.subheadline, design: .rounded))
-                            .foregroundStyle(AppTheme.mutedText)
-                    }
-
-                    Spacer()
-
-                    Menu {
-                        if !handle.isPrimary {
-                            Button("Make primary") {
-                                viewModel.makePrimary(handle)
-                            }
-                        }
-
-                        Button(role: .destructive) {
-                            viewModel.removeHandle(handle)
-                        } label: {
-                            Text("Remove")
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis.circle.fill")
-                            .font(.system(size: 24))
-                            .foregroundStyle(AppTheme.accent)
-                    }
-                }
-                .padding(.vertical, 4)
-            }
-
-            Divider()
-
-            TextField("New Codeforces handle", text: $viewModel.newHandleInput)
+            TextField("Profile image URL", text: $viewModel.profileImageURLString)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .appInputField()
 
-            TextField("Label (optional)", text: $viewModel.newHandleLabelInput)
+            TextField("Primary Codeforces handle", text: $viewModel.primaryHandle)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
                 .appInputField()
-
-            Button("Add handle") {
-                viewModel.addHandle()
-            }
-            .buttonStyle(AppSecondaryButtonStyle())
         }
         .appCard()
     }
 
     private func saveProfile() async {
         isSaving = true
+        defer { isSaving = false }
 
         do {
             try await sessionStore.updateProfile(viewModel.buildUpdatedProfile())
@@ -337,8 +210,6 @@ private struct ProfileEditorSheet: View {
         } catch {
             viewModel.errorMessage = error.localizedDescription
         }
-
-        isSaving = false
     }
 }
 
@@ -348,15 +219,14 @@ private struct ProfileEditorSheet: View {
         fullName: "Demo User",
         mobileNumber: "+8801000000000",
         universityName: "Demo University",
-        handles: [
-            TrackedHandle(handle: "tourist", label: "Main", isPrimary: true),
-            TrackedHandle(handle: "neal", label: "Alt")
+        primaryHandle: "tourist",
+        friends: [
+            FriendProfile(handle: "Benq")
         ]
     ))
 
     return NavigationStack {
         ProfileView()
-            .environmentObject(AppRouter())
             .environmentObject(session)
     }
 }

@@ -57,6 +57,13 @@ actor TutorialCatalogService {
                 return diskCache.tutorials
             }
 
+            let tutorials = loadBundleFallbackTutorials()
+            if !tutorials.isEmpty {
+                let cached = CachedTutorialList(fetchedAt: .now, tutorials: tutorials)
+                listMemoryCache = cached
+                return tutorials
+            }
+
             throw error
         }
     }
@@ -82,6 +89,12 @@ actor TutorialCatalogService {
             if let diskCache {
                 detailMemoryCache[tutorial.id] = diskCache
                 return diskCache.detail
+            }
+
+            if let detail = loadBundleFallbackDetail(for: tutorial.id) {
+                let cached = CachedTutorialDetail(fetchedAt: .now, detail: detail)
+                detailMemoryCache[tutorial.id] = cached
+                return detail
             }
 
             throw error
@@ -137,20 +150,21 @@ actor TutorialCatalogService {
             let category = categoryTitle(from: path)
             let level = estimatedLevel(for: resolvedTitle, category: category)
 
-            let tutorial = AlgorithmTutorial(
-                id: path.replacingOccurrences(of: ".html", with: ""),
-                title: resolvedTitle,
-                explanation: summary(for: resolvedTitle, category: category),
-                difficulty: level,
-                practiceTip: practiceTip(for: category),
-                category: category,
-                sourcePath: path,
-                sourceURLString: "https://cp-algorithms.com/\(path)",
-                sourceMarkdownURLString: "https://raw.githubusercontent.com/cp-algorithms/cp-algorithms/main/src/\(markdownPath(from: path))"
+            tutorials.append(
+                AlgorithmTutorial(
+                    id: path.replacingOccurrences(of: ".html", with: ""),
+                    title: resolvedTitle,
+                    explanation: summary(for: resolvedTitle, category: category),
+                    difficulty: level,
+                    practiceTip: practiceTip(for: category),
+                    category: category,
+                    sourcePath: path,
+                    sourceURLString: "https://cp-algorithms.com/\(path)",
+                    sourceMarkdownURLString: "https://raw.githubusercontent.com/cp-algorithms/cp-algorithms/main/src/\(markdownPath(from: path))"
+                )
             )
 
             seenPaths.insert(path)
-            tutorials.append(tutorial)
         }
 
         return tutorials.sorted { lhs, rhs in
@@ -238,6 +252,34 @@ actor TutorialCatalogService {
         )
     }
 
+    private func loadBundleFallbackTutorials() -> [AlgorithmTutorial] {
+        guard let url = Bundle.main.url(forResource: "tutorials", withExtension: "json", subdirectory: "Resources")
+                ?? Bundle.main.url(forResource: "tutorials", withExtension: "json") else {
+            return []
+        }
+
+        guard let data = try? Data(contentsOf: url),
+              let tutorials = try? decoder.decode([AlgorithmTutorial].self, from: data) else {
+            return []
+        }
+
+        return tutorials
+    }
+
+    private func loadBundleFallbackDetail(for tutorialID: String) -> AlgorithmTutorialDetail? {
+        guard let url = Bundle.main.url(forResource: "tutorial_detail_fallbacks", withExtension: "json", subdirectory: "Resources")
+                ?? Bundle.main.url(forResource: "tutorial_detail_fallbacks", withExtension: "json") else {
+            return nil
+        }
+
+        guard let data = try? Data(contentsOf: url),
+              let details = try? decoder.decode([AlgorithmTutorialDetail].self, from: data) else {
+            return nil
+        }
+
+        return details.first { $0.tutorial.id == tutorialID }
+    }
+
     private func flushParagraph(into paragraphs: inout [String], buffer: inout [String]) {
         guard !buffer.isEmpty else { return }
 
@@ -321,11 +363,11 @@ actor TutorialCatalogService {
     }
 
     private func summary(for title: String, category: String) -> String {
-        "A \(category.lowercased()) tutorial from cp-algorithms focused on \(title.lowercased())."
+        "A \(category.lowercased()) guide on \(title.lowercased())."
     }
 
     private func practiceTip(for category: String) -> String {
-        "Read the key idea, skim the section map, then solve one \(category.lowercased()) problem before moving on."
+        "Read the key idea, then solve one \(category.lowercased()) problem."
     }
 
     private func stripFrontMatter(from markdown: String) -> String {

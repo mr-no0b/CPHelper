@@ -1,0 +1,54 @@
+[
+  {
+    "tutorial": {
+      "id": "binary-search",
+      "title": "Binary Search",
+      "explanation": "Binary Search works on sorted answers or sorted arrays by repeatedly checking the middle position.",
+      "difficulty": "Easy",
+      "practiceTip": "Write the low, high, and mid update rules carefully on paper before coding.",
+      "category": "Starter",
+      "sourcePath": "",
+      "sourceURLString": "",
+      "sourceMarkdownURLString": ""
+    },
+    "overviewParagraphs": [
+      "Binary search halves the search space every step when the answer range is monotonic.",
+      "In competitive programming this appears both on sorted arrays and on answer space problems where a predicate flips from false to true."
+    ],
+    "sectionHeadings": [
+      "When binary search applies",
+      "Classic array binary search",
+      "Binary search on answer",
+      "Boundary bugs to avoid"
+    ],
+    "practiceLinks": [],
+    "relatedLinks": [],
+    "readingMinutes": 6
+  },
+  {
+    "tutorial": {
+      "id": "dfs",
+      "title": "DFS",
+      "explanation": "Depth-First Search explores as far as possible before backtracking in a graph or tree.",
+      "difficulty": "Medium",
+      "practiceTip": "Practice marking visited nodes first so you do not repeat work.",
+      "category": "Starter",
+      "sourcePath": "",
+      "sourceURLString": "",
+      "sourceMarkdownURLString": ""
+    },
+    "overviewParagraphs": [
+      "DFS walks one branch deeply before backtracking, which makes it a core tool for trees, graphs, and recursive state exploration.",
+      "It is especially useful for connected components, subtree logic, and reachability."
+    ],
+    "sectionHeadings": [
+      "Recursive DFS",
+      "Iterative DFS",
+      "Visited handling",
+      "Tree applications"
+    ],
+    "practiceLinks": [],
+    "relatedLinks": [],
+    "readingMinutes": 7
+  }
+]

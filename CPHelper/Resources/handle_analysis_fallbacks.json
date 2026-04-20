@@ -1,0 +1,213 @@
+[
+  {
+    "handle": "tourist",
+    "fetchedAt": "2026-04-20T00:00:00Z",
+    "summary": {
+      "displayName": "Gennady Korotkevich",
+      "currentRating": 3797,
+      "maxRating": 3826,
+      "rankTitle": "legendary grandmaster",
+      "maxRankTitle": "legendary grandmaster",
+      "solvedCount": 3941,
+      "totalSubmissions": 15234,
+      "acceptedSubmissions": 7210,
+      "overallAcceptanceRate": 0.4733,
+      "contestsParticipated": 412,
+      "highestSolvedRating": 3500,
+      "mostProductiveTag": "greedy",
+      "firstActiveDate": "2010-01-15T00:00:00Z",
+      "lastActiveDate": "2026-04-01T00:00:00Z",
+      "avatarURL": "https://userpic.codeforces.org/no-title.jpg"
+    },
+    "ratingHistory": [
+      {
+        "contestName": "Codeforces Beta Round 1",
+        "date": "2010-01-15T00:00:00Z",
+        "oldRating": 1500,
+        "newRating": 1650
+      },
+      {
+        "contestName": "Codeforces Round 500",
+        "date": "2018-08-10T00:00:00Z",
+        "oldRating": 3710,
+        "newRating": 3741
+      },
+      {
+        "contestName": "Codeforces Round 900",
+        "date": "2024-09-12T00:00:00Z",
+        "oldRating": 3783,
+        "newRating": 3797
+      }
+    ],
+    "solvedProblems": [
+      {
+        "contestId": 1000,
+        "index": "F",
+        "name": "One More Problem",
+        "rating": 2600,
+        "tags": ["dp", "greedy"]
+      },
+      {
+        "contestId": 1200,
+        "index": "G",
+        "name": "Harder Problem",
+        "rating": 3000,
+        "tags": ["graphs", "data structures"]
+      }
+    ],
+    "verdicts": [
+      {
+        "verdict": "OK",
+        "count": 7210,
+        "share": 0.4733
+      },
+      {
+        "verdict": "WRONG_ANSWER",
+        "count": 5020,
+        "share": 0.3295
+      },
+      {
+        "verdict": "TIME_LIMIT_EXCEEDED",
+        "count": 1800,
+        "share": 0.1182
+      }
+    ],
+    "solvedByRating": [
+      {
+        "label": "1800",
+        "ratingValue": 1800,
+        "solvedCount": 320,
+        "submissionCount": 620,
+        "acceptedCount": 350,
+        "acceptanceRate": 0.5645
+      },
+      {
+        "label": "2200",
+        "ratingValue": 2200,
+        "solvedCount": 280,
+        "submissionCount": 520,
+        "acceptedCount": 290,
+        "acceptanceRate": 0.5576
+      },
+      {
+        "label": "2600",
+        "ratingValue": 2600,
+        "solvedCount": 160,
+        "submissionCount": 310,
+        "acceptedCount": 175,
+        "acceptanceRate": 0.5645
+      }
+    ],
+    "acceptanceByRating": [
+      {
+        "label": "1800",
+        "ratingValue": 1800,
+        "solvedCount": 320,
+        "submissionCount": 620,
+        "acceptedCount": 350,
+        "acceptanceRate": 0.5645
+      },
+      {
+        "label": "2200",
+        "ratingValue": 2200,
+        "solvedCount": 280,
+        "submissionCount": 520,
+        "acceptedCount": 290,
+        "acceptanceRate": 0.5576
+      },
+      {
+        "label": "2600",
+        "ratingValue": 2600,
+        "solvedCount": 160,
+        "submissionCount": 310,
+        "acceptedCount": 175,
+        "acceptanceRate": 0.5645
+      }
+    ],
+    "roundTypePerformance": [
+      {
+        "roundType": "Div 1",
+        "contestCount": 120,
+        "submissionCount": 4300,
+        "acceptedCount": 2100,
+        "acceptanceRate": 0.4884
+      },
+      {
+        "roundType": "Global / Other",
+        "contestCount": 90,
+        "submissionCount": 2900,
+        "acceptedCount": 1410,
+        "acceptanceRate": 0.4862
+      }
+    ],
+    "strengths": [
+      {
+        "title": "Strong in greedy",
+        "detail": "56% over 820 tagged attempts.",
+        "tone": "positive"
+      }
+    ],
+    "weaknesses": [
+      {
+        "title": "Drop near 3000",
+        "detail": "42% over 140 submissions.",
+        "tone": "caution"
+      }
+    ],
+    "topicPerformance": [
+      {
+        "tag": "greedy",
+        "solvedCount": 620,
+        "attemptedCount": 820,
+        "acceptedCount": 460,
+        "acceptanceRate": 0.5609
+      },
+      {
+        "tag": "dp",
+        "solvedCount": 510,
+        "attemptedCount": 760,
+        "acceptedCount": 390,
+        "acceptanceRate": 0.5132
+      },
+      {
+        "tag": "graphs",
+        "solvedCount": 420,
+        "attemptedCount": 700,
+        "acceptedCount": 340,
+        "acceptanceRate": 0.4857
+      }
+    ],
+    "monthlyActivity": [
+      {
+        "monthLabel": "Nov 25",
+        "submissionCount": 220,
+        "acceptedCount": 104
+      },
+      {
+        "monthLabel": "Dec 25",
+        "submissionCount": 260,
+        "acceptedCount": 130
+      },
+      {
+        "monthLabel": "Jan 26",
+        "submissionCount": 210,
+        "acceptedCount": 95
+      },
+      {
+        "monthLabel": "Feb 26",
+        "submissionCount": 230,
+        "acceptedCount": 112
+      },
+      {
+        "monthLabel": "Mar 26",
+        "submissionCount": 250,
+        "acceptedCount": 126
+      },
+      {
+        "monthLabel": "Apr 26",
+        "submissionCount": 180,
+        "acceptedCount": 88
+      }
+    ]
+  }
+]

@@ -52,4 +52,8 @@ final class AppRouter: ObservableObject {
         selectedTab = .toolkit
         toolkitPath = [.contestCalendar]
     }
+
+    func openProfile() {
+        selectedTab = .profile
+    }
 }

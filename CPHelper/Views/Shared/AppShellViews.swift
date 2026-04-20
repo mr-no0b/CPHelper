@@ -1,10 +1,5 @@
 import SwiftUI
 
-struct HandleRoute: Identifiable, Hashable {
-    let id = UUID()
-    let handle: String
-}
-
 struct AppBackdrop: View {
     var body: some View {
         ZStack {
@@ -84,5 +79,33 @@ struct InfoBadge: View {
                 Capsule()
                     .fill(tint.opacity(0.12))
             )
+    }
+}
+
+struct AvatarView: View {
+    let title: String
+    let imageURL: URL?
+    let size: CGFloat
+    var gradient: LinearGradient = AppTheme.heroGradient
+
+    var body: some View {
+        AsyncImage(url: imageURL) { image in
+            image
+                .resizable()
+                .scaledToFill()
+        } placeholder: {
+            ZStack {
+                Circle().fill(gradient)
+                Text(String(title.prefix(1)).uppercased())
+                    .font(.system(size: size * 0.34, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(Circle())
+        .overlay(
+            Circle()
+                .stroke(Color.white.opacity(0.55), lineWidth: 2)
+        )
     }
 }

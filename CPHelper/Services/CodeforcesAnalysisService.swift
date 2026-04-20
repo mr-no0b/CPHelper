@@ -47,6 +47,9 @@ actor CodeforcesAnalysisService {
     private struct CFRatingChange: Decodable {
         let contestId: Int
         let contestName: String
+        let oldRating: Int
+        let newRating: Int
+        let ratingUpdateTimeSeconds: Int
     }
 
     private struct CFContest: Decodable {
@@ -81,12 +84,20 @@ actor CodeforcesAnalysisService {
         let name: String
     }
 
+    private struct CachedAnalysis: Codable {
+        let fetchedAt: Date
+        let analysis: HandleAnalysis
+    }
+
     private let session: URLSession
     private let decoder = JSONDecoder()
+    private let encoder: JSONEncoder
     private let requestGate: CodeforcesRequestGate
+    private let fileManager = FileManager.default
+    private let cacheLifetime: TimeInterval = 60 * 60 * 6
 
     private var contestNameCache: [Int: String]?
-    private var analysisCache: [String: HandleAnalysis] = [:]
+    private var analysisCache: [String: CachedAnalysis] = [:]
 
     init(
         session: URLSession = .shared,
@@ -94,6 +105,12 @@ actor CodeforcesAnalysisService {
     ) {
         self.session = session
         self.requestGate = requestGate
+
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        self.encoder = encoder
+
+        decoder.dateDecodingStrategy = .iso8601
     }
 
     func loadAnalysis(for rawHandle: String, forceRefresh: Bool = false) async throws -> HandleAnalysis {
@@ -104,42 +121,65 @@ actor CodeforcesAnalysisService {
         }
 
         let cacheKey = handle.lowercased()
-        if let cached = analysisCache[cacheKey], !forceRefresh {
-            return cached
+        if let cached = analysisCache[cacheKey], !forceRefresh, isFresh(cached.fetchedAt) {
+            return cached.analysis
         }
 
-        let users: [CFUser] = try await request(
-            method: "user.info",
-            queryItems: [
-                URLQueryItem(name: "handles", value: handle),
-                URLQueryItem(name: "checkHistoricHandles", value: "true")
-            ]
-        )
-
-        guard let user = users.first else {
-            throw CodeforcesError.emptyResponse
+        let diskCache = try? loadDiskCache(for: cacheKey)
+        if let diskCache, !forceRefresh, isFresh(diskCache.fetchedAt) {
+            analysisCache[cacheKey] = diskCache
+            return diskCache.analysis
         }
 
-        let ratingChanges: [CFRatingChange] = try await request(
-            method: "user.rating",
-            queryItems: [URLQueryItem(name: "handle", value: handle)]
-        )
+        do {
+            let users: [CFUser] = try await request(
+                method: "user.info",
+                queryItems: [
+                    URLQueryItem(name: "handles", value: handle),
+                    URLQueryItem(name: "checkHistoricHandles", value: "true")
+                ]
+            )
 
-        let submissions: [CFSubmission] = try await request(
-            method: "user.status",
-            queryItems: [URLQueryItem(name: "handle", value: handle)]
-        )
+            guard let user = users.first else {
+                throw CodeforcesError.emptyResponse
+            }
 
-        let contestNames = try await loadContestNames()
-        let analysis = buildAnalysis(
-            user: user,
-            ratingChanges: ratingChanges,
-            submissions: submissions,
-            contestNames: contestNames
-        )
+            let ratingChanges: [CFRatingChange] = try await request(
+                method: "user.rating",
+                queryItems: [URLQueryItem(name: "handle", value: handle)]
+            )
 
-        analysisCache[cacheKey] = analysis
-        return analysis
+            let submissions: [CFSubmission] = try await request(
+                method: "user.status",
+                queryItems: [URLQueryItem(name: "handle", value: handle)]
+            )
+
+            let contestNames = try await loadContestNames()
+            let analysis = buildAnalysis(
+                user: user,
+                ratingChanges: ratingChanges,
+                submissions: submissions,
+                contestNames: contestNames
+            )
+
+            let cached = CachedAnalysis(fetchedAt: .now, analysis: analysis)
+            analysisCache[cacheKey] = cached
+            try? saveDiskCache(cached, for: cacheKey)
+            return analysis
+        } catch {
+            if let diskCache {
+                analysisCache[cacheKey] = diskCache
+                return diskCache.analysis
+            }
+
+            if let fallbackAnalysis = loadBundleFallbackAnalysis(for: cacheKey) {
+                let cached = CachedAnalysis(fetchedAt: .now, analysis: fallbackAnalysis)
+                analysisCache[cacheKey] = cached
+                return fallbackAnalysis
+            }
+
+            throw error
+        }
     }
 
     private func loadContestNames() async throws -> [Int: String] {
@@ -250,6 +290,15 @@ actor CodeforcesAnalysisService {
             return $0.solvedCount < $1.solvedCount
         }?.tag
 
+        let ratingHistory = ratingChanges.map { change in
+            RatingHistoryPoint(
+                contestName: change.contestName,
+                date: Date(timeIntervalSince1970: TimeInterval(change.ratingUpdateTimeSeconds)),
+                oldRating: change.oldRating,
+                newRating: change.newRating
+            )
+        }
+
         let summary = HandleAnalysisSummary(
             displayName: [user.firstName, user.lastName]
                 .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -267,6 +316,9 @@ actor CodeforcesAnalysisService {
             contestsParticipated: Set(ratingChanges.map(\.contestId)).count,
             highestSolvedRating: highestSolvedRating,
             mostProductiveTag: mostProductiveTag,
+            firstActiveDate: sortedSubmissions.first.map {
+                Date(timeIntervalSince1970: TimeInterval($0.creationTimeSeconds))
+            },
             lastActiveDate: sortedSubmissions.last.map {
                 Date(timeIntervalSince1970: TimeInterval($0.creationTimeSeconds))
             },
@@ -310,6 +362,7 @@ actor CodeforcesAnalysisService {
             handle: user.handle,
             fetchedAt: .now,
             summary: summary,
+            ratingHistory: ratingHistory,
             solvedProblems: solvedProblemSummaries,
             verdicts: verdicts,
             solvedByRating: solvedByRating,
@@ -562,7 +615,7 @@ actor CodeforcesAnalysisService {
             insights.append(
                 AnalysisInsight(
                     title: "Strong in \(standoutTag.tag)",
-                    detail: "\(NumberFormatting.percentage(standoutTag.acceptanceRate)) acceptance across \(standoutTag.attemptedCount) tagged submissions with \(standoutTag.solvedCount) solved problems.",
+                    detail: "\(NumberFormatting.percentage(standoutTag.acceptanceRate)) over \(standoutTag.attemptedCount) tagged attempts.",
                     tone: .positive
                 )
             )
@@ -573,8 +626,8 @@ actor CodeforcesAnalysisService {
            highestSolvedRating >= currentRating + 200 {
             insights.append(
                 AnalysisInsight(
-                    title: "Problem ceiling is ahead of current rating",
-                    detail: "You have already solved up to rating \(highestSolvedRating), which is comfortably above the current rating of \(currentRating).",
+                    title: "Good rating ceiling",
+                    detail: "Solved up to \(highestSolvedRating) while current rating sits at \(currentRating).",
                     tone: .positive
                 )
             )
@@ -585,8 +638,8 @@ actor CodeforcesAnalysisService {
             .max(by: { $0.acceptanceRate < $1.acceptanceRate }) {
             insights.append(
                 AnalysisInsight(
-                    title: "\(bestRound.roundType.rawValue) rounds suit you well",
-                    detail: "\(NumberFormatting.percentage(bestRound.acceptanceRate)) acceptance rate over \(bestRound.contestCount) contests suggests strong contest comfort there.",
+                    title: "\(bestRound.roundType.rawValue) is a fit",
+                    detail: "\(NumberFormatting.percentage(bestRound.acceptanceRate)) over \(bestRound.contestCount) contests.",
                     tone: .positive
                 )
             )
@@ -595,8 +648,8 @@ actor CodeforcesAnalysisService {
         if insights.isEmpty {
             insights.append(
                 AnalysisInsight(
-                    title: "Healthy base to build on",
-                    detail: "This handle already has accepted solutions and contest history, so there is enough signal to keep refining rating-wise practice.",
+                    title: "Healthy base",
+                    detail: "There is enough signal here to guide practice.",
                     tone: .positive
                 )
             )
@@ -618,8 +671,8 @@ actor CodeforcesAnalysisService {
         }) {
             insights.append(
                 AnalysisInsight(
-                    title: "Weak spot around \(strugglingTag.tag)",
-                    detail: "Only \(NumberFormatting.percentage(strugglingTag.acceptanceRate)) acceptance over \(strugglingTag.attemptedCount) submissions suggests this topic needs more deliberate practice.",
+                    title: "Weak tag: \(strugglingTag.tag)",
+                    detail: "\(NumberFormatting.percentage(strugglingTag.acceptanceRate)) over \(strugglingTag.attemptedCount) attempts.",
                     tone: .caution
                 )
             )
@@ -630,8 +683,8 @@ actor CodeforcesAnalysisService {
             .min(by: { $0.acceptanceRate < $1.acceptanceRate }) {
             insights.append(
                 AnalysisInsight(
-                    title: "Conversion drops around rating \(ratingBand.label)",
-                    detail: "This band has only \(NumberFormatting.percentage(ratingBand.acceptanceRate)) acceptance across \(ratingBand.submissionCount) submissions.",
+                    title: "Drop near \(ratingBand.label)",
+                    detail: "\(NumberFormatting.percentage(ratingBand.acceptanceRate)) over \(ratingBand.submissionCount) submissions.",
                     tone: .caution
                 )
             )
@@ -642,8 +695,8 @@ actor CodeforcesAnalysisService {
             .min(by: { $0.acceptanceRate < $1.acceptanceRate }) {
             insights.append(
                 AnalysisInsight(
-                    title: "\(toughestRound.roundType.rawValue) contests need more work",
-                    detail: "Round pressure is visible here with \(NumberFormatting.percentage(toughestRound.acceptanceRate)) acceptance across \(toughestRound.contestCount) contests.",
+                    title: "\(toughestRound.roundType.rawValue) needs work",
+                    detail: "\(NumberFormatting.percentage(toughestRound.acceptanceRate)) over \(toughestRound.contestCount) contests.",
                     tone: .caution
                 )
             )
@@ -652,8 +705,8 @@ actor CodeforcesAnalysisService {
         if insights.isEmpty {
             insights.append(
                 AnalysisInsight(
-                    title: "Next step is sharper volume",
-                    detail: "There is no single obvious weak tag yet, so increasing focused attempts around your next rating band should surface the next growth edge.",
+                    title: "Next step is more volume",
+                    detail: "There is no single obvious weak point yet.",
                     tone: .neutral
                 )
             )
@@ -672,8 +725,7 @@ actor CodeforcesAnalysisService {
         if normalized.contains("div. 1 + div. 2")
             || normalized.contains("div. 1+2")
             || normalized.contains("div.1 + div.2")
-            || normalized.contains("div 1 + div 2")
-        {
+            || normalized.contains("div 1 + div 2") {
             return .div12
         }
 
@@ -688,12 +740,55 @@ actor CodeforcesAnalysisService {
         if normalized.contains("div. 3")
             || normalized.contains("div 3")
             || normalized.contains("div. 4")
-            || normalized.contains("div 4")
-        {
+            || normalized.contains("div 4") {
             return .div3
         }
 
         return .global
+    }
+
+    private func loadDiskCache(for handle: String) throws -> CachedAnalysis {
+        let data = try Data(contentsOf: cacheURL(for: handle))
+        return try decoder.decode(CachedAnalysis.self, from: data)
+    }
+
+    private func saveDiskCache(_ cache: CachedAnalysis, for handle: String) throws {
+        let data = try encoder.encode(cache)
+        try data.write(to: cacheURL(for: handle), options: .atomic)
+    }
+
+    private func cacheURL(for handle: String) throws -> URL {
+        let baseDirectory = try fileManager.url(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        )
+
+        let folderURL = baseDirectory.appendingPathComponent("CPHelper", isDirectory: true)
+        if !fileManager.fileExists(atPath: folderURL.path) {
+            try fileManager.createDirectory(at: folderURL, withIntermediateDirectories: true, attributes: nil)
+        }
+
+        return folderURL.appendingPathComponent("analysis-cache-\(handle).json")
+    }
+
+    private func loadBundleFallbackAnalysis(for handle: String) -> HandleAnalysis? {
+        guard let url = Bundle.main.url(forResource: "handle_analysis_fallbacks", withExtension: "json", subdirectory: "Resources")
+                ?? Bundle.main.url(forResource: "handle_analysis_fallbacks", withExtension: "json") else {
+            return nil
+        }
+
+        guard let data = try? Data(contentsOf: url),
+              let analyses = try? decoder.decode([HandleAnalysis].self, from: data) else {
+            return nil
+        }
+
+        return analyses.first { $0.handle.caseInsensitiveCompare(handle) == .orderedSame }
+    }
+
+    private func isFresh(_ date: Date) -> Bool {
+        Date().timeIntervalSince(date) <= cacheLifetime
     }
 }
 

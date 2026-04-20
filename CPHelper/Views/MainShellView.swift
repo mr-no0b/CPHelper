@@ -155,7 +155,6 @@ struct MainShellView: View {
 
 #Preview {
     MainShellView()
-        .environmentObject(AppData())
         .environmentObject(AppRouter())
         .environmentObject(TutorialLibraryStore())
         .environmentObject(ContestCenterStore())

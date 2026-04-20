@@ -39,7 +39,8 @@ struct ChatHandleInsight: Hashable {
 
 struct CPChatContextSnapshot {
     let userName: String
-    let trackedHandles: [TrackedHandle]
+    let primaryHandle: String?
+    let friends: [FriendProfile]
     let handleInsights: [ChatHandleInsight]
     let currentProblem: CodeforcesProblem?
 }

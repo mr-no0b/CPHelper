@@ -3,6 +3,12 @@ import Foundation
 
 @MainActor
 final class ChatbotViewModel: ObservableObject {
+    private struct HandleTarget {
+        let handle: String
+        let label: String
+        let isPrimary: Bool
+    }
+
     @Published var messages: [CPChatMessage]
     @Published var draftMessage = ""
     @Published private(set) var isSending = false
@@ -31,9 +37,9 @@ final class ChatbotViewModel: ObservableObject {
 
         let openingLine: String
         if let problem {
-            openingLine = "Problem context is attached for \(problem.displayID). Ask for an approach, edge cases, DSA intuition, or a calm recovery plan if you are stuck."
+            openingLine = "Problem context is attached for \(problem.displayID)."
         } else {
-            openingLine = "Ask about a Codeforces handle, a DSA topic, a practice roadmap, an upcoming contest, or what to do after a frustrating session."
+            openingLine = "Ask about your primary handle, friends, DSA, roadmap, or contests."
         }
 
         self.messages = [
@@ -45,21 +51,22 @@ final class ChatbotViewModel: ObservableObject {
         guard !hasPrepared else { return }
         hasPrepared = true
 
-        guard let user, !user.handles.isEmpty else { return }
+        guard let user else { return }
+
+        let prioritizedHandles = prioritizedHandles(from: user)
+        guard !prioritizedHandles.isEmpty else { return }
 
         isPreparingContext = true
         defer { isPreparingContext = false }
 
-        let prioritizedHandles = prioritizedHandles(from: user)
-
-        for trackedHandle in prioritizedHandles.prefix(3) {
+        for target in prioritizedHandles.prefix(3) {
             do {
-                let analysis = try await analysisService.loadAnalysis(for: trackedHandle.handle)
+                let analysis = try await analysisService.loadAnalysis(for: target.handle)
                 let stage = RoadmapStage.stage(for: analysis.effectiveCurrentRating)
                 let insight = ChatHandleInsight(
                     handle: analysis.handle,
-                    label: trackedHandle.label,
-                    isPrimary: trackedHandle.isPrimary,
+                    label: target.label,
+                    isPrimary: target.isPrimary,
                     currentRating: analysis.summary.currentRating,
                     maxRating: analysis.summary.maxRating,
                     solvedCount: analysis.summary.solvedCount,
@@ -97,15 +104,15 @@ final class ChatbotViewModel: ObservableObject {
         ) {
             switch route {
             case .handleAnalysis(let handle):
-                messages.append(CPChatMessage(role: .assistant, text: "Opening handle analysis for @\(handle)."))
+                messages.append(CPChatMessage(role: .assistant, text: "Opening @\(handle)."))
             case .tutorial(let tutorialID):
                 if let tutorial = tutorials.first(where: { $0.id == tutorialID }) {
-                    messages.append(CPChatMessage(role: .assistant, text: "Opening the tutorial for \(tutorial.title)."))
+                    messages.append(CPChatMessage(role: .assistant, text: "Opening \(tutorial.title)."))
                 } else {
-                    messages.append(CPChatMessage(role: .assistant, text: "Opening the tutorial you asked for."))
+                    messages.append(CPChatMessage(role: .assistant, text: "Opening tutorial."))
                 }
             case .contestCalendar:
-                messages.append(CPChatMessage(role: .assistant, text: "Opening the contest calendar."))
+                messages.append(CPChatMessage(role: .assistant, text: "Opening contest calendar."))
             }
 
             return route
@@ -121,7 +128,8 @@ final class ChatbotViewModel: ObservableObject {
         do {
             let context = CPChatContextSnapshot(
                 userName: user?.fullName ?? "coder",
-                trackedHandles: user?.handles ?? [],
+                primaryHandle: user?.primaryHandle,
+                friends: user?.friends ?? [],
                 handleInsights: handleInsights,
                 currentProblem: problem
             )
@@ -137,7 +145,7 @@ final class ChatbotViewModel: ObservableObject {
             messages.append(
                 CPChatMessage(
                     role: .assistant,
-                    text: "I could not reach the coaching model just now. You can still ask for a handle analysis or open a tutorial from the toolkit."
+                    text: "I could not reach the coaching model just now."
                 )
             )
         }
@@ -228,10 +236,15 @@ final class ChatbotViewModel: ObservableObject {
     }
 
     private func extractHandle(from message: String, user: UserProfile?) -> String? {
+        if let primaryHandle = user?.primaryHandle,
+           message.localizedCaseInsensitiveContains(primaryHandle) {
+            return primaryHandle
+        }
+
         if let user {
-            for trackedHandle in user.handles {
-                if message.localizedCaseInsensitiveContains(trackedHandle.handle) {
-                    return trackedHandle.handle
+            for friend in user.friends {
+                if message.localizedCaseInsensitiveContains(friend.handle) {
+                    return friend.handle
                 }
             }
         }
@@ -262,21 +275,32 @@ final class ChatbotViewModel: ObservableObject {
         return nil
     }
 
-    private func prioritizedHandles(from user: UserProfile) -> [TrackedHandle] {
-        if let preferredHandle {
-            let matching = user.handles.first { $0.handle.caseInsensitiveCompare(preferredHandle) == .orderedSame }
-            let remaining = user.handles.filter { $0.id != matching?.id }
-            return (matching.map { [$0] } ?? []) + remaining
+    private func prioritizedHandles(from user: UserProfile) -> [HandleTarget] {
+        var targets: [HandleTarget] = []
+
+        if let preferredHandle,
+           let matchingFriend = user.friends.first(where: { $0.handle.caseInsensitiveCompare(preferredHandle) == .orderedSame }) {
+            targets.append(HandleTarget(handle: matchingFriend.handle, label: matchingFriend.displayName, isPrimary: false))
         }
 
-        let sortedPrimary = user.handles.sorted { lhs, rhs in
-            if lhs.isPrimary == rhs.isPrimary {
-                return lhs.addedAt < rhs.addedAt
+        if let preferredHandle,
+           let primaryHandle = user.primaryHandle,
+           preferredHandle.caseInsensitiveCompare(primaryHandle) == .orderedSame {
+            targets.append(HandleTarget(handle: primaryHandle, label: "Primary", isPrimary: true))
+        }
+
+        if let primaryHandle = user.primaryHandle,
+           !targets.contains(where: { $0.handle.caseInsensitiveCompare(primaryHandle) == .orderedSame }) {
+            targets.append(HandleTarget(handle: primaryHandle, label: "Primary", isPrimary: true))
+        }
+
+        for friend in user.friends {
+            if !targets.contains(where: { $0.handle.caseInsensitiveCompare(friend.handle) == .orderedSame }) {
+                targets.append(HandleTarget(handle: friend.handle, label: friend.displayName, isPrimary: false))
             }
-            return lhs.isPrimary && !rhs.isPrimary
         }
 
-        return sortedPrimary
+        return targets
     }
 
     private func normalize(_ text: String) -> String {

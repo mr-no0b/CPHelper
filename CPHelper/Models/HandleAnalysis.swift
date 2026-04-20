@@ -1,12 +1,13 @@
 import Foundation
 import SwiftUI
 
-struct HandleAnalysis: Identifiable, Equatable {
+struct HandleAnalysis: Codable, Identifiable, Equatable {
     var id: String { handle.lowercased() }
 
     let handle: String
     let fetchedAt: Date
     let summary: HandleAnalysisSummary
+    let ratingHistory: [RatingHistoryPoint]
     let solvedProblems: [HandleSolvedProblem]
     let verdicts: [VerdictSlice]
     let solvedByRating: [RatingPerformance]
@@ -26,7 +27,7 @@ struct HandleAnalysis: Identifiable, Equatable {
     }
 }
 
-struct HandleAnalysisSummary: Equatable {
+struct HandleAnalysisSummary: Codable, Equatable {
     let displayName: String
     let currentRating: Int?
     let maxRating: Int?
@@ -39,11 +40,23 @@ struct HandleAnalysisSummary: Equatable {
     let contestsParticipated: Int
     let highestSolvedRating: Int?
     let mostProductiveTag: String?
+    let firstActiveDate: Date?
     let lastActiveDate: Date?
     let avatarURL: URL?
 }
 
-struct HandleSolvedProblem: Identifiable, Equatable, Hashable {
+struct RatingHistoryPoint: Codable, Identifiable, Equatable {
+    let contestName: String
+    let date: Date
+    let oldRating: Int
+    let newRating: Int
+
+    var id: String {
+        contestName + String(date.timeIntervalSince1970)
+    }
+}
+
+struct HandleSolvedProblem: Codable, Identifiable, Equatable, Hashable {
     let contestId: Int
     let index: String
     let name: String
@@ -55,7 +68,7 @@ struct HandleSolvedProblem: Identifiable, Equatable, Hashable {
     }
 }
 
-struct VerdictSlice: Identifiable, Equatable {
+struct VerdictSlice: Codable, Identifiable, Equatable {
     var id: String { verdict.rawValue }
 
     let verdict: SubmissionVerdict
@@ -63,7 +76,7 @@ struct VerdictSlice: Identifiable, Equatable {
     let share: Double
 }
 
-struct RatingPerformance: Identifiable, Equatable {
+struct RatingPerformance: Codable, Identifiable, Equatable {
     var id: String { label }
 
     let label: String
@@ -74,7 +87,7 @@ struct RatingPerformance: Identifiable, Equatable {
     let acceptanceRate: Double
 }
 
-struct RoundTypePerformance: Identifiable, Equatable {
+struct RoundTypePerformance: Codable, Identifiable, Equatable {
     var id: String { roundType.rawValue }
 
     let roundType: ContestRoundType
@@ -84,7 +97,7 @@ struct RoundTypePerformance: Identifiable, Equatable {
     let acceptanceRate: Double
 }
 
-struct TopicPerformance: Identifiable, Equatable {
+struct TopicPerformance: Codable, Identifiable, Equatable {
     var id: String { tag }
 
     let tag: String
@@ -94,7 +107,7 @@ struct TopicPerformance: Identifiable, Equatable {
     let acceptanceRate: Double
 }
 
-struct MonthlyActivity: Identifiable, Equatable {
+struct MonthlyActivity: Codable, Identifiable, Equatable {
     var id: String { monthLabel }
 
     let monthLabel: String
@@ -102,7 +115,7 @@ struct MonthlyActivity: Identifiable, Equatable {
     let acceptedCount: Int
 }
 
-struct AnalysisInsight: Identifiable, Equatable {
+struct AnalysisInsight: Codable, Identifiable, Equatable {
     var id: String { title + tone.rawValue }
 
     let title: String
@@ -110,7 +123,7 @@ struct AnalysisInsight: Identifiable, Equatable {
     let tone: InsightTone
 }
 
-enum InsightTone: String, Equatable {
+enum InsightTone: String, Codable, Equatable {
     case positive
     case caution
     case neutral
@@ -127,7 +140,7 @@ enum InsightTone: String, Equatable {
     }
 }
 
-enum SubmissionVerdict: String, CaseIterable, Equatable {
+enum SubmissionVerdict: String, Codable, CaseIterable, Equatable {
     case accepted = "OK"
     case wrongAnswer = "WRONG_ANSWER"
     case timeLimit = "TIME_LIMIT_EXCEEDED"
@@ -223,7 +236,7 @@ enum SubmissionVerdict: String, CaseIterable, Equatable {
     }
 }
 
-enum ContestRoundType: String, CaseIterable, Equatable {
+enum ContestRoundType: String, Codable, CaseIterable, Equatable {
     case div1 = "Div 1"
     case div2 = "Div 2"
     case div12 = "Div 1 + 2"
