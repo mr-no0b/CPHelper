@@ -21,17 +21,17 @@ struct AuthView: View {
 
     private var heroSection: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text("Compete smarter.\nTrack every breakthrough.")
+            Text("Competitive Programming Helper")
                 .font(.system(size: 38, weight: .bold, design: .rounded))
                 .foregroundStyle(AppTheme.text)
 
-            Text("A cleaner competitive programming workspace with account access, multi-handle tracking, and modern Codeforces analysis.")
+            Text("Firebase-backed profiles, one primary handle, friends, analysis, contests, and practice tools.")
                 .font(.system(.body, design: .rounded))
                 .foregroundStyle(AppTheme.mutedText)
 
             HStack(spacing: 12) {
-                MetricChip(title: "Auth", value: "Secure local")
-                MetricChip(title: "Profiles", value: "Multi handle")
+                MetricChip(title: "Auth", value: "Firebase")
+                MetricChip(title: "Profiles", value: "Primary + friends")
                 MetricChip(title: "Analysis", value: "Live CF data")
             }
         }
@@ -83,7 +83,7 @@ struct AuthView: View {
             .buttonStyle(AppPrimaryButtonStyle())
             .disabled(sessionStore.isWorking)
 
-            Text(viewModel.mode == .login ? "Welcome back. Your profile, tracked handles, and analysis hub are waiting." : "Create your profile with a strong base and start tracking handles right away.")
+            Text(viewModel.mode == .login ? "Sign in." : "Create your profile.")
                 .font(.system(.footnote, design: .rounded))
                 .foregroundStyle(AppTheme.mutedText)
         }
@@ -138,8 +138,8 @@ struct AuthView: View {
             TextField("University", text: $viewModel.signUpInput.universityName)
                 .appInputField()
 
-            fieldLabel("Codeforces Handle (Optional)")
-            TextField("tourist", text: $viewModel.signUpInput.codeforcesHandle)
+            fieldLabel("Primary Codeforces Handle (Optional)")
+            TextField("tourist", text: $viewModel.signUpInput.primaryHandle)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .appInputField()

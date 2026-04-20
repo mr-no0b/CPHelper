@@ -1,11 +1,15 @@
+import Charts
 import SwiftUI
 
 struct HomeView: View {
     @EnvironmentObject private var appRouter: AppRouter
     @EnvironmentObject private var contestCenter: ContestCenterStore
     @EnvironmentObject private var sessionStore: SessionStore
-    @State private var handleInput = ""
-    @State private var searchHint: String?
+
+    @State private var primaryHandleInput = ""
+    @State private var primaryAnalysis: HandleAnalysis?
+    @State private var isLoadingAnalysis = false
+    @State private var analysisError: String?
 
     var body: some View {
         ZStack {
@@ -13,11 +17,9 @@ struct HomeView: View {
 
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 20) {
-                    heroSection
-                    quickAnalysisCard
-                    trackedHandlesSection
-                    contestPreviewSection
-                    workspaceSection
+                    headerCard
+                    primarySection
+                    nextContestSection
                 }
                 .padding(20)
             }
@@ -29,19 +31,153 @@ struct HomeView: View {
                     .font(.system(.headline, design: .rounded).weight(.bold))
                     .foregroundStyle(AppTheme.text)
             }
+
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    appRouter.openProfile()
+                } label: {
+                    AvatarView(
+                        title: sessionStore.currentUser?.initials ?? "U",
+                        imageURL: sessionStore.currentUser?.profileImageURL,
+                        size: 38
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .task(id: sessionStore.currentUser?.primaryHandle ?? "") {
+            await loadPrimaryAnalysis()
         }
     }
 
-    private var contestPreviewSection: some View {
+    private var headerCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(sessionStore.currentUser?.fullName ?? "Welcome")
+                .font(.system(size: 32, weight: .bold, design: .rounded))
+                .foregroundStyle(AppTheme.text)
+
+            HStack(spacing: 10) {
+                MetricChip(title: "Primary", value: sessionStore.currentUser?.primaryHandle ?? "Not set")
+                MetricChip(title: "Friends", value: "\(sessionStore.currentUser?.friends.count ?? 0)")
+                MetricChip(title: "Todo", value: "\(sessionStore.currentUser?.todoProblems.count ?? 0)")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var primarySection: some View {
+        if let primaryHandle = sessionStore.currentUser?.primaryHandle, !primaryHandle.isEmpty {
+            primaryOverviewCard(handle: primaryHandle)
+        } else {
+            primaryHandleSetupCard
+        }
+    }
+
+    private func primaryOverviewCard(handle: String) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            SectionTitle(
-                title: "Contest radar",
-                subtitle: "Keep the next Codeforces round visible and jump into your reminder-aware contest calendar."
-            )
+            HStack(alignment: .top, spacing: 14) {
+                AvatarView(
+                    title: handle,
+                    imageURL: primaryAnalysis?.summary.avatarURL,
+                    size: 64
+                )
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Primary profile")
+                        .font(.system(.caption, design: .rounded).weight(.bold))
+                        .foregroundStyle(AppTheme.mutedText)
+
+                    Text("@\(handle)")
+                        .font(.system(.title3, design: .rounded).weight(.bold))
+                        .foregroundStyle(AppTheme.text)
+
+                    Text(primaryAnalysis?.summary.firstActiveDate.map { DateFormatting.mediumDate.string(from: $0) } ?? "Loading...")
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundStyle(AppTheme.mutedText)
+                }
+
+                Spacer()
+
+                Button("More") {
+                    appRouter.openHandleAnalysis(handle)
+                }
+                .buttonStyle(AppSecondaryButtonStyle())
+            }
+
+            if let analysis = primaryAnalysis {
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                    statCard(title: "Current", value: analysis.summary.currentRating.map(String.init) ?? "Unrated")
+                    statCard(title: "Max", value: analysis.summary.maxRating.map(String.init) ?? "Unrated")
+                    statCard(title: "Solved", value: NumberFormatting.compact(analysis.summary.solvedCount))
+                    statCard(title: "AC", value: NumberFormatting.percentage(analysis.summary.overallAcceptanceRate))
+                }
+
+                if !analysis.ratingHistory.isEmpty {
+                    Chart(analysis.ratingHistory.suffix(10)) { point in
+                        LineMark(
+                            x: .value("Date", point.date),
+                            y: .value("Rating", point.newRating)
+                        )
+                        .foregroundStyle(AppTheme.accent.gradient)
+                        .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round))
+                    }
+                    .frame(height: 130)
+                }
+            } else if isLoadingAnalysis {
+                InlineMessageCard(
+                    icon: "chart.line.uptrend.xyaxis",
+                    title: "Loading primary profile",
+                    detail: "Fetching Codeforces data."
+                )
+            } else if let analysisError {
+                InlineMessageCard(
+                    icon: "exclamationmark.triangle.fill",
+                    title: "Could not load profile",
+                    detail: analysisError
+                )
+            }
+        }
+        .appCard()
+    }
+
+    private var primaryHandleSetupCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            SectionTitle(title: "Primary Handle", subtitle: "Set once")
+
+            TextField("tourist", text: $primaryHandleInput)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .appInputField()
+
+            Button("Save Primary Handle") {
+                Task {
+                    do {
+                        analysisError = nil
+                        try await sessionStore.setPrimaryHandle(primaryHandleInput)
+                        primaryHandleInput = ""
+                    } catch {
+                        analysisError = error.localizedDescription
+                    }
+                }
+            }
+            .buttonStyle(AppPrimaryButtonStyle())
+
+            if let analysisError {
+                Text(analysisError)
+                    .font(.system(.footnote, design: .rounded))
+                    .foregroundStyle(Color(red: 0.76, green: 0.21, blue: 0.22))
+            }
+        }
+        .appCard()
+    }
+
+    private var nextContestSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            SectionTitle(title: "Next Contest", subtitle: "Upcoming")
 
             if let nextContest = contestCenter.upcomingContests.first {
                 VStack(alignment: .leading, spacing: 14) {
-                    HStack(alignment: .top, spacing: 12) {
+                    HStack(alignment: .top) {
                         VStack(alignment: .leading, spacing: 8) {
                             Text(nextContest.name)
                                 .font(.system(.headline, design: .rounded).weight(.bold))
@@ -56,11 +192,15 @@ struct HomeView: View {
                         Spacer()
                     }
 
-                    Text("Starts \(nextContest.startDateLabel) • \(contestCenter.registrationSummary(for: nextContest, user: sessionStore.currentUser))")
+                    Text(nextContest.startDateLabel)
                         .font(.system(.subheadline, design: .rounded))
                         .foregroundStyle(AppTheme.mutedText)
 
-                    Button("Open contest calendar") {
+                    Text(contestCenter.registrationSummary(for: nextContest, user: sessionStore.currentUser))
+                        .font(.system(.footnote, design: .rounded))
+                        .foregroundStyle(AppTheme.mutedText)
+
+                    Button("Open Calendar") {
                         appRouter.openContestCalendar()
                     }
                     .buttonStyle(AppPrimaryButtonStyle())
@@ -69,189 +209,55 @@ struct HomeView: View {
             } else if contestCenter.isLoading {
                 InlineMessageCard(
                     icon: "calendar.badge.clock",
-                    title: "Loading contests",
-                    detail: "Fetching upcoming Codeforces rounds and building your reminder timeline."
+                    title: "Loading contest",
+                    detail: "Fetching Codeforces schedule."
                 )
             } else {
                 InlineMessageCard(
                     icon: "calendar",
-                    title: "No upcoming contests",
-                    detail: "Codeforces is not showing any scheduled rounds right now."
+                    title: "No contest found",
+                    detail: "Nothing upcoming right now."
                 )
             }
         }
     }
 
-    private var heroSection: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Text("Welcome back, \(sessionStore.currentUser?.fullName.components(separatedBy: " ").first ?? "coder").")
-                .font(.system(size: 34, weight: .bold, design: .rounded))
+    private func loadPrimaryAnalysis() async {
+        guard let handle = sessionStore.currentUser?.primaryHandle, !handle.isEmpty else {
+            primaryAnalysis = nil
+            analysisError = nil
+            return
+        }
+
+        primaryAnalysis = nil
+        isLoadingAnalysis = true
+        defer { isLoadingAnalysis = false }
+
+        do {
+            primaryAnalysis = try await CodeforcesAnalysisService.shared.loadAnalysis(for: handle)
+            analysisError = nil
+        } catch {
+            primaryAnalysis = nil
+            analysisError = error.localizedDescription
+        }
+    }
+
+    private func statCard(title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(value)
+                .font(.system(.headline, design: .rounded).weight(.bold))
                 .foregroundStyle(AppTheme.text)
 
-            Text("Search any Codeforces handle, revisit your tracked profiles, and keep the rest of the helper tools one tap away.")
-                .font(.system(.body, design: .rounded))
+            Text(title)
+                .font(.system(.caption, design: .rounded).weight(.medium))
                 .foregroundStyle(AppTheme.mutedText)
-
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(spacing: 10) {
-                    MetricChip(title: "Tracked", value: "\(sessionStore.currentUser?.handles.count ?? 0)")
-                    MetricChip(title: "Default", value: sessionStore.currentUser?.primaryHandle ?? "None")
-                }
-
-                HStack(spacing: 10) {
-                    MetricChip(
-                        title: "Member since",
-                        value: sessionStore.currentUser.map {
-                            DateFormatting.mediumDate.string(from: $0.memberSince)
-                        } ?? "Today"
-                    )
-                    MetricChip(title: "Analysis", value: "Live CF")
-                }
-            }
-
-            if let primaryHandle = sessionStore.currentUser?.primaryHandle {
-                HStack(spacing: 12) {
-                    Text("Primary handle: \(primaryHandle)")
-                        .font(.system(.subheadline, design: .rounded).weight(.semibold))
-                        .foregroundStyle(.white)
-
-                    Spacer()
-
-                    Button("Open analysis") {
-                        openHandle(primaryHandle)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.white.opacity(0.20))
-                    .foregroundStyle(.white)
-                }
-                .padding(18)
-                .background(
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .fill(AppTheme.heroGradient)
-                )
-            }
         }
-    }
-
-    private var quickAnalysisCard: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            SectionTitle(
-                title: "Handle analysis",
-                subtitle: "Type any public Codeforces handle and jump into a full breakdown."
-            )
-
-            TextField("Enter a handle like tourist", text: $handleInput)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .appInputField()
-
-            if let searchHint {
-                Text(searchHint)
-                    .font(.system(.footnote, design: .rounded))
-                    .foregroundStyle(Color(red: 0.74, green: 0.24, blue: 0.22))
-            }
-
-            Button("Analyze handle") {
-                let normalized = handleInput.trimmingCharacters(in: .whitespacesAndNewlines)
-
-                guard !normalized.isEmpty else {
-                    searchHint = "Please enter a Codeforces handle."
-                    return
-                }
-
-                searchHint = nil
-                openHandle(normalized)
-            }
-            .buttonStyle(AppPrimaryButtonStyle())
-        }
-        .appCard()
-    }
-
-    private var trackedHandlesSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            SectionTitle(
-                title: "Tracked handles",
-                subtitle: "These are pinned to your profile for one-tap access."
-            )
-
-            if let handles = sessionStore.currentUser?.handles, !handles.isEmpty {
-                ForEach(handles) { handle in
-                    HStack(spacing: 14) {
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack(spacing: 8) {
-                                Text(handle.handle)
-                                    .font(.system(.headline, design: .rounded).weight(.bold))
-                                    .foregroundStyle(AppTheme.text)
-
-                                if handle.isPrimary {
-                                    InfoBadge(title: "Primary", tint: AppTheme.accent)
-                                }
-                            }
-
-                            if !handle.label.isEmpty {
-                                Text(handle.label)
-                                    .font(.system(.subheadline, design: .rounded))
-                                    .foregroundStyle(AppTheme.mutedText)
-                            }
-                        }
-
-                        Spacer()
-
-                        Button("View analysis") {
-                            openHandle(handle.handle)
-                        }
-                        .buttonStyle(AppSecondaryButtonStyle())
-                    }
-                    .appCard()
-                }
-            } else {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("No handles added yet.")
-                        .font(.system(.headline, design: .rounded).weight(.bold))
-                        .foregroundStyle(AppTheme.text)
-
-                    Text("Open the Profile tab to add your Codeforces handles and start tracking them.")
-                        .font(.system(.subheadline, design: .rounded))
-                        .foregroundStyle(AppTheme.mutedText)
-                }
-                .appCard()
-            }
-        }
-    }
-
-    private var workspaceSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            SectionTitle(
-                title: "Keep building",
-                subtitle: "Open the toolkit for suggested problems, weak areas, roadmap guidance, tutorials, contest planning, and your persistent todo list."
-            )
-
-            NavigationLink(destination: ToolkitView()) {
-                HStack(spacing: 16) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Open toolkit")
-                            .font(.system(.headline, design: .rounded).weight(.bold))
-                            .foregroundStyle(AppTheme.text)
-
-                        Text("Suggested practice, weak-topic analysis, roadmap, todo list, and tutorial hub.")
-                            .font(.system(.subheadline, design: .rounded))
-                            .foregroundStyle(AppTheme.mutedText)
-                    }
-
-                    Spacer()
-
-                    Image(systemName: "arrow.right.circle.fill")
-                        .font(.system(size: 26))
-                        .foregroundStyle(AppTheme.accent)
-                }
-                .appCard()
-            }
-            .buttonStyle(.plain)
-        }
-    }
-
-    private func openHandle(_ handle: String) {
-        appRouter.openHandleAnalysis(handle)
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(AppTheme.background)
+        )
     }
 }
 
@@ -261,15 +267,14 @@ struct HomeView: View {
         fullName: "Demo User",
         mobileNumber: "+8801000000000",
         universityName: "Demo University",
-        handles: [
-            TrackedHandle(handle: "tourist", label: "Main", isPrimary: true),
-            TrackedHandle(handle: "Benq", label: "Reference")
+        primaryHandle: "tourist",
+        friends: [
+            FriendProfile(handle: "Benq", nickname: "Ben")
         ]
     ))
 
     return NavigationStack {
         HomeView()
-            .environmentObject(AppData())
             .environmentObject(AppRouter())
             .environmentObject(ContestCenterStore())
             .environmentObject(session)

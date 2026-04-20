@@ -6,9 +6,9 @@ final class SessionStore: ObservableObject {
     @Published private(set) var isBootstrapping = true
     @Published private(set) var isWorking = false
 
-    private let accountStore: LocalAccountStore
+    private let accountStore: FirebaseAccountStore
 
-    init(accountStore: LocalAccountStore = .shared) {
+    init(accountStore: FirebaseAccountStore = .shared) {
         self.accountStore = accountStore
 
         Task {
@@ -58,6 +58,37 @@ final class SessionStore: ObservableObject {
         currentUser = try await accountStore.updateProfile(profile)
     }
 
+    func setPrimaryHandle(_ handle: String?) async throws {
+        guard let currentUser else { return }
+
+        isWorking = true
+        defer { isWorking = false }
+
+        self.currentUser = try await accountStore.setPrimaryHandle(handle, userID: currentUser.id)
+    }
+
+    func addFriend(handle: String, nickname: String) async throws {
+        guard let currentUser else { return }
+
+        isWorking = true
+        defer { isWorking = false }
+
+        self.currentUser = try await accountStore.addFriend(
+            handle: handle,
+            nickname: nickname,
+            userID: currentUser.id
+        )
+    }
+
+    func removeFriend(friendID: UUID) async throws {
+        guard let currentUser else { return }
+
+        isWorking = true
+        defer { isWorking = false }
+
+        self.currentUser = try await accountStore.removeFriend(friendID: friendID, userID: currentUser.id)
+    }
+
     func addTodoProblem(_ problem: CodeforcesProblem, for handle: String) async throws {
         guard let currentUser else { return }
 
@@ -67,7 +98,7 @@ final class SessionStore: ObservableObject {
         self.currentUser = try await accountStore.addTodoProblem(
             problem,
             for: handle,
-            userEmail: currentUser.email
+            userID: currentUser.id
         )
     }
 
@@ -79,7 +110,7 @@ final class SessionStore: ObservableObject {
 
         self.currentUser = try await accountStore.removeTodoProblem(
             todoID: todoID,
-            userEmail: currentUser.email
+            userID: currentUser.id
         )
     }
 
@@ -97,8 +128,21 @@ final class SessionStore: ObservableObject {
             contestId: contestId,
             handle: handle,
             isRegistered: isRegistered,
-            userEmail: currentUser.email
+            userID: currentUser.id
         )
+    }
+
+    func addTodoProblem(from problemLink: String) async throws {
+        guard let currentUser else { return }
+        guard let primaryHandle = currentUser.primaryHandle, !primaryHandle.isEmpty else {
+            throw AccountStoreError.missingPrimaryHandle
+        }
+
+        guard let problem = try await CodeforcesProblemCatalogService.shared.problem(for: problemLink) else {
+            throw AccountStoreError.invalidProblemLink
+        }
+
+        try await addTodoProblem(problem, for: primaryHandle)
     }
 
     func signOut() async {

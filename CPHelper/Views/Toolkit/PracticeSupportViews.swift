@@ -1,44 +1,5 @@
 import SwiftUI
 
-struct HandlePickerCard: View {
-    let title: String
-    let subtitle: String
-    let handles: [TrackedHandle]
-    @Binding var selectedHandle: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            SectionTitle(title: title, subtitle: subtitle)
-
-            if handles.isEmpty {
-                Text("No Codeforces handles found yet. Add one from the Profile tab to unlock this section.")
-                    .font(.system(.subheadline, design: .rounded))
-                    .foregroundStyle(AppTheme.mutedText)
-            } else {
-                Picker("Handle", selection: $selectedHandle) {
-                    ForEach(handles) { handle in
-                        Text(handleLabel(for: handle))
-                            .tag(handle.handle)
-                    }
-                }
-                .pickerStyle(.menu)
-                .tint(AppTheme.accent)
-            }
-        }
-        .appCard()
-    }
-
-    private func handleLabel(for handle: TrackedHandle) -> String {
-        if handle.label.isEmpty {
-            return handle.isPrimary ? "\(handle.handle) | Primary" : handle.handle
-        }
-
-        return handle.isPrimary
-            ? "\(handle.handle) | \(handle.label) | Primary"
-            : "\(handle.handle) | \(handle.label)"
-    }
-}
-
 struct InlineMessageCard: View {
     let icon: String
     let title: String
@@ -119,12 +80,45 @@ struct PracticeActionButton: View {
             .frame(maxWidth: .infinity)
             .background(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(tint.opacity(0.12))
+                    .fill(tint.opacity(0.10))
             )
         }
         .buttonStyle(.plain)
         .disabled(disabled || isBusy)
         .opacity((disabled || isBusy) ? 0.65 : 1)
+    }
+}
+
+struct CapsuleChoiceRow<Value: Hashable>: View {
+    let values: [Value]
+    let title: (Value) -> String
+    @Binding var selection: Value
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(values, id: \.self) { value in
+                    Button {
+                        selection = value
+                    } label: {
+                        Text(title(value))
+                            .font(.system(.subheadline, design: .rounded).weight(.semibold))
+                            .foregroundStyle(selection == value ? .white : AppTheme.text)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(
+                                Capsule()
+                                    .fill(
+                                        selection == value
+                                            ? AnyShapeStyle(AppTheme.heroGradient)
+                                            : AnyShapeStyle(Color.white.opacity(0.92))
+                                    )
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
     }
 }
 

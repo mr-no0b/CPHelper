@@ -22,17 +22,17 @@ struct ChatbotWorkspaceView: View {
     private var quickPrompts: [String] {
         if let problem {
             return [
-                "Help me break down \(problem.displayID) step by step",
-                "What edge cases should I test here?",
-                "I am stuck and frustrated. What should I do now?"
+                "Break down \(problem.displayID)",
+                "What edge cases should I test?",
+                "Give me a calm next step."
             ]
         }
 
         return [
             "Analyze my primary handle",
-            "Explain DSU in a beginner-friendly way",
-            "Give me a 2-week roadmap from my current level",
-            "I am frustrated. What should I do now?"
+            "Explain DSU simply",
+            "Give me a 2-week roadmap",
+            "What should I do after a bad session?"
         ]
     }
 
@@ -40,7 +40,7 @@ struct ChatbotWorkspaceView: View {
         ZStack {
             AppBackdrop()
 
-            VStack(spacing: 16) {
+            VStack(spacing: 14) {
                 headerCard
 
                 if let problem {
@@ -64,14 +64,10 @@ struct ChatbotWorkspaceView: View {
     }
 
     private var headerCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Competitive programming, only.")
-                .font(.system(size: 30, weight: .bold, design: .rounded))
+        VStack(alignment: .leading, spacing: 12) {
+            Text("CP Coach")
+                .font(.system(size: 28, weight: .bold, design: .rounded))
                 .foregroundStyle(AppTheme.text)
-
-            Text("Ask for handle insight, DSA explanations, roadmap help, contest planning, or what to do after a bad session. If you explicitly ask for handle analysis or a tutorial, I’ll take you there.")
-                .font(.system(.body, design: .rounded))
-                .foregroundStyle(AppTheme.mutedText)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
@@ -98,13 +94,8 @@ struct ChatbotWorkspaceView: View {
     }
 
     private func problemContextCard(_ problem: CodeforcesProblem) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            SectionTitle(
-                title: "Attached problem",
-                subtitle: "Your questions can be grounded in the currently selected problem."
-            )
-
-            HStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
                 if let handle {
                     InfoBadge(title: "@\(handle)", tint: AppTheme.accent)
                 }
@@ -121,53 +112,32 @@ struct ChatbotWorkspaceView: View {
             Text(problem.displayID)
                 .font(.system(.subheadline, design: .rounded))
                 .foregroundStyle(AppTheme.mutedText)
-
-            if !problem.tags.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(problem.tags.prefix(6), id: \.self) { tag in
-                            Text(tag)
-                                .font(.system(.caption, design: .rounded).weight(.medium))
-                                .foregroundStyle(AppTheme.accentSecondary)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .background(
-                                    Capsule()
-                                        .fill(AppTheme.accentSecondary.opacity(0.12))
-                                )
-                        }
-                    }
-                }
-            }
         }
         .appCard()
     }
 
     private var profilePulseCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            SectionTitle(
-                title: "Profile pulse",
-                subtitle: "Loaded handle context the coach can use for roadmap and frustration recovery."
-            )
+        VStack(alignment: .leading, spacing: 12) {
+            SectionTitle(title: "Profile Pulse", subtitle: "Loaded handle context")
 
             if viewModel.isPreparingContext && viewModel.handleInsights.isEmpty {
                 HStack(spacing: 12) {
                     ProgressView()
                         .tint(AppTheme.accent)
 
-                    Text("Analyzing your tracked handles in the background...")
+                    Text("Loading handle context...")
                         .font(.system(.subheadline, design: .rounded))
                         .foregroundStyle(AppTheme.mutedText)
                 }
             } else if viewModel.handleInsights.isEmpty {
-                Text("No tracked-handle analysis is attached yet. Add Codeforces handles in your profile to unlock deeper coaching.")
+                Text("No handle context loaded yet.")
                     .font(.system(.subheadline, design: .rounded))
                     .foregroundStyle(AppTheme.mutedText)
             } else {
                 VStack(spacing: 10) {
                     ForEach(viewModel.handleInsights, id: \.handle) { insight in
                         HStack(spacing: 12) {
-                            VStack(alignment: .leading, spacing: 6) {
+                            VStack(alignment: .leading, spacing: 5) {
                                 HStack(spacing: 8) {
                                     Text("@\(insight.handle)")
                                         .font(.system(.subheadline, design: .rounded).weight(.bold))
@@ -178,7 +148,7 @@ struct ChatbotWorkspaceView: View {
                                     }
                                 }
 
-                                Text("\(insight.roadmapStage.title) • AC \(NumberFormatting.percentage(insight.acceptanceRate)) • \(insight.solvedCount) solved")
+                                Text("\(insight.roadmapStage.title) • \(insight.solvedCount) solved")
                                     .font(.system(.caption, design: .rounded))
                                     .foregroundStyle(AppTheme.mutedText)
                             }
@@ -247,7 +217,7 @@ struct ChatbotWorkspaceView: View {
 
             HStack(alignment: .bottom, spacing: 12) {
                 TextField(
-                    "Ask about handles, DSA, roadmaps, tutorials, or problem strategy...",
+                    "Ask about handles, DSA, roadmaps, tutorials, or strategy...",
                     text: $viewModel.draftMessage,
                     axis: .vertical
                 )
@@ -371,8 +341,9 @@ private struct MessageBubble: View {
         email: "demo@example.com",
         fullName: "Demo User",
         mobileNumber: "+8801000000000",
-        handles: [
-            TrackedHandle(handle: "tourist", label: "Main", isPrimary: true)
+        primaryHandle: "tourist",
+        friends: [
+            FriendProfile(handle: "Benq")
         ]
     ))
 

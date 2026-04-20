@@ -1,0 +1,20 @@
+[
+  {
+    "id": 2101,
+    "name": "Codeforces Round 2101 (Div. 2)",
+    "phase": "BEFORE",
+    "type": "CF",
+    "durationSeconds": 7200,
+    "startTime": "2026-05-02T12:00:00Z",
+    "relativeTimeSeconds": null
+  },
+  {
+    "id": 2102,
+    "name": "Educational Codeforces Round 2102",
+    "phase": "BEFORE",
+    "type": "ICPC",
+    "durationSeconds": 9000,
+    "startTime": "2026-05-05T14:00:00Z",
+    "relativeTimeSeconds": null
+  }
+]
