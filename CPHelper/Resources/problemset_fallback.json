@@ -1,0 +1,66 @@
+[
+  {
+    "contestId": 4,
+    "index": "A",
+    "name": "Watermelon",
+    "rating": 800,
+    "tags": ["brute force", "math"],
+    "solvedCount": 650000
+  },
+  {
+    "contestId": 71,
+    "index": "A",
+    "name": "Way Too Long Words",
+    "rating": 800,
+    "tags": ["strings", "implementation"],
+    "solvedCount": 730000
+  },
+  {
+    "contestId": 231,
+    "index": "A",
+    "name": "Team",
+    "rating": 800,
+    "tags": ["brute force", "greedy"],
+    "solvedCount": 610000
+  },
+  {
+    "contestId": 339,
+    "index": "A",
+    "name": "Helpful Maths",
+    "rating": 800,
+    "tags": ["implementation", "sortings", "strings"],
+    "solvedCount": 520000
+  },
+  {
+    "contestId": 580,
+    "index": "A",
+    "name": "Kefa and First Steps",
+    "rating": 900,
+    "tags": ["brute force", "dp", "implementation"],
+    "solvedCount": 410000
+  },
+  {
+    "contestId": 706,
+    "index": "B",
+    "name": "Interesting Drink",
+    "rating": 1100,
+    "tags": ["binary search", "dp", "implementation"],
+    "solvedCount": 360000
+  },
+  {
+    "contestId": 977,
+    "index": "B",
+    "name": "Two-gram",
+    "rating": 1000,
+    "tags": ["implementation", "strings"],
+    "solvedCount": 300000
+  },
+  {
+    "contestId": 580,
+    "index": "C",
+    "name": "Kefa and Park",
+    "rating": 1400,
+    "tags": ["dfs and similar", "graphs", "trees"],
+    "solvedCount": 180000
+  }
+]

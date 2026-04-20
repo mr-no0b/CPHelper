@@ -95,25 +95,22 @@ final class ContestCenterStore: ObservableObject {
         unreadCount = reminderFeed.filter { $0.isDue() && !ids.contains($0.id) }.count
     }
 
-    func isHandleRegistered(_ handle: String, for contest: CodeforcesContest, user: UserProfile?) -> Bool {
-        user?.isRegistered(for: contest.id, handle: handle) ?? false
-    }
-
-    func unregisteredHandles(for contest: CodeforcesContest, user: UserProfile?) -> [String] {
-        user?.unregisteredHandles(for: contest.id) ?? []
+    func isRegistered(for contest: CodeforcesContest, user: UserProfile?) -> Bool {
+        user?.isRegistered(for: contest.id) ?? false
     }
 
     func registrationSummary(for contest: CodeforcesContest, user: UserProfile?) -> String {
-        guard let user, !user.handles.isEmpty else {
-            return "No tracked handles added yet."
+        guard let user else {
+            return "Sign in to track contest registration."
         }
 
-        let unregistered = unregisteredHandles(for: contest, user: user)
-        if unregistered.isEmpty {
-            return "All tracked handles are marked registered."
+        guard let primaryHandle = user.primaryHandle, !primaryHandle.isEmpty else {
+            return "Set your primary handle."
         }
 
-        return "\(unregistered.count) handle\(unregistered.count == 1 ? "" : "s") still unregistered."
+        return user.isRegistered(for: contest.id)
+            ? "@\(primaryHandle) marked registered"
+            : "@\(primaryHandle) still needs registration"
     }
 
     private func buildReminderFeed(
@@ -135,8 +132,8 @@ final class ContestCenterStore: ObservableObject {
         for contest: CodeforcesContest,
         user: UserProfile
     ) -> [ContestReminderItem] {
-        let unregisteredHandles = user.unregisteredHandles(for: contest.id)
-        let handlesLabel = unregisteredHandles.joined(separator: ", ")
+        let primaryHandle = user.primaryHandle?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let needsRegistration = !primaryHandle.isEmpty && !user.isRegistered(for: contest.id)
 
         let items: [ContestReminderItem?] = [
             ContestReminderItem(
@@ -144,26 +141,26 @@ final class ContestCenterStore: ObservableObject {
                 kind: .dayBefore,
                 scheduledDate: contest.startTime.addingTimeInterval(-ContestReminderKind.dayBefore.leadTime),
                 title: "\(ContestReminderKind.dayBefore.titlePrefix): \(contest.name)",
-                message: "Your next Codeforces contest starts in 24 hours at \(contest.shortStartTimeLabel).",
+                message: "Starts in 24 hours.",
                 severity: .neutral
             ),
-            unregisteredHandles.isEmpty ? nil : ContestReminderItem(
+            needsRegistration ? ContestReminderItem(
                 contest: contest,
                 kind: .threeHours,
                 scheduledDate: contest.startTime.addingTimeInterval(-ContestReminderKind.threeHours.leadTime),
                 title: "\(ContestReminderKind.threeHours.titlePrefix): \(contest.name)",
-                message: "3 hours left. These handles are still not marked registered: \(handlesLabel).",
+                message: "@\(primaryHandle) is still not marked registered.",
                 severity: .warning
-            ),
+            ) : nil,
             ContestReminderItem(
                 contest: contest,
                 kind: .finalHour,
                 scheduledDate: contest.startTime.addingTimeInterval(-ContestReminderKind.finalHour.leadTime),
                 title: "\(ContestReminderKind.finalHour.titlePrefix): \(contest.name)",
-                message: unregisteredHandles.isEmpty
-                    ? "1 hour left. Final reminder to warm up and be ready."
-                    : "Red flag: 1 hour left and these handles are still not marked registered: \(handlesLabel).",
-                severity: unregisteredHandles.isEmpty ? .neutral : .danger
+                message: needsRegistration
+                    ? "@\(primaryHandle) still needs registration."
+                    : "1 hour left.",
+                severity: needsRegistration ? .danger : .neutral
             )
         ]
 

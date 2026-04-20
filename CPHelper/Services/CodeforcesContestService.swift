@@ -70,6 +70,13 @@ actor CodeforcesContestService {
                 return diskCache.contests
             }
 
+            let fallbackContests = loadBundleFallbackContests()
+            if !fallbackContests.isEmpty {
+                let cached = CachedContestList(fetchedAt: .now, contests: fallbackContests)
+                memoryCache = cached
+                return fallbackContests
+            }
+
             throw error
         }
     }
@@ -114,6 +121,20 @@ actor CodeforcesContestService {
             )
         }
         .sorted { $0.startTime < $1.startTime }
+    }
+
+    private func loadBundleFallbackContests() -> [CodeforcesContest] {
+        guard let url = Bundle.main.url(forResource: "contest_fallbacks", withExtension: "json", subdirectory: "Resources")
+                ?? Bundle.main.url(forResource: "contest_fallbacks", withExtension: "json") else {
+            return []
+        }
+
+        guard let data = try? Data(contentsOf: url),
+              let contests = try? decoder.decode([CodeforcesContest].self, from: data) else {
+            return []
+        }
+
+        return contests.sorted { $0.startTime < $1.startTime }
     }
 
     private func loadDiskCache() throws -> CachedContestList {

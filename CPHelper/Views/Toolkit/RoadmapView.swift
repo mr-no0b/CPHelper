@@ -1,12 +1,11 @@
 import SwiftUI
 
 struct RoadmapView: View {
-    @EnvironmentObject private var sessionStore: SessionStore
-    @StateObject private var viewModel = RoadmapViewModel()
-    @State private var selectedHandle = ""
+    private let targets = [1000, 1200, 1400, 1600, 1800, 2000, 2200]
+    @State private var targetRating = 1400
 
-    private var handles: [TrackedHandle] {
-        sessionStore.currentUser?.handles ?? []
+    private var targetStage: RoadmapStage {
+        RoadmapStage.stage(for: targetRating)
     }
 
     var body: some View {
@@ -14,112 +13,53 @@ struct RoadmapView: View {
             AppBackdrop()
 
             ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 20) {
-                    HandlePickerCard(
-                        title: "Roadmap",
-                        subtitle: "Each stage tells you what to learn, what difficulty to drill, and what the next rating jump should look like.",
-                        handles: handles,
-                        selectedHandle: $selectedHandle
-                    )
+                VStack(alignment: .leading, spacing: 18) {
+                    VStack(alignment: .leading, spacing: 14) {
+                        SectionTitle(title: "Target Rating", subtitle: "Static roadmap")
+                        CapsuleChoiceRow(values: targets, title: { "\($0)" }, selection: $targetRating)
+                    }
+                    .appCard()
 
-                    if handles.isEmpty {
-                        InlineMessageCard(
-                            icon: "map.fill",
-                            title: "Add a handle first",
-                            detail: "The roadmap highlights the stage that matches a real Codeforces rating, so it needs one attached handle."
-                        )
-                    } else {
-                        headlineCard
+                    focusedRoadmapCard
+
+                    VStack(alignment: .leading, spacing: 14) {
+                        SectionTitle(title: "All Stages", subtitle: "Progression map")
 
                         ForEach(RoadmapStage.all) { stage in
-                            roadmapStageCard(stage)
+                            stageRow(stage)
                         }
                     }
+                    .appCard()
                 }
                 .padding(20)
             }
         }
         .navigationTitle("Roadmap")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear {
-            syncSelectedHandle()
-        }
-        .task(id: selectedHandle) {
-            guard !selectedHandle.isEmpty else { return }
-            await viewModel.load(for: selectedHandle)
-        }
     }
 
-    private var headlineCard: some View {
+    private var focusedRoadmapCard: some View {
         VStack(alignment: .leading, spacing: 16) {
-            SectionTitle(
-                title: "Current track",
-                subtitle: "The highlighted stage is based on the selected handle's current rating, not just its peak."
-            )
+            Text(targetStage.title)
+                .font(.system(.title3, design: .rounded).weight(.bold))
+                .foregroundStyle(AppTheme.text)
 
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                MetricChip(
-                    title: "Handle",
-                    value: selectedHandle.isEmpty ? "None" : "@\(selectedHandle)"
-                )
-                MetricChip(
-                    title: "Current rating",
-                    value: viewModel.analysis?.summary.currentRating.map(String.init) ?? "Unrated"
-                )
-                MetricChip(title: "Stage", value: viewModel.highlightedStage.title)
-                MetricChip(title: "Next target", value: viewModel.highlightedStage.nextRangeLabel)
-            }
-
-            if let errorMessage = viewModel.errorMessage {
-                Text(errorMessage)
-                    .font(.system(.subheadline, design: .rounded))
-                    .foregroundStyle(Color(red: 0.78, green: 0.23, blue: 0.24))
-            } else {
-                Text("Recommended practice range: \(viewModel.highlightedStage.practiceRangeLabel)")
-                    .font(.system(.subheadline, design: .rounded))
-                    .foregroundStyle(AppTheme.mutedText)
-            }
-        }
-        .appCard()
-    }
-
-    private func roadmapStageCard(_ stage: RoadmapStage) -> some View {
-        let isHighlighted = stage.id == viewModel.highlightedStage.id
-
-        return VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(stage.title)
-                        .font(.system(.title3, design: .rounded).weight(.bold))
-                        .foregroundStyle(AppTheme.text)
-
-                    Text("Rating band \(stage.ratingRange.lowerBound)-\(stage.ratingRange.upperBound)")
-                        .font(.system(.subheadline, design: .rounded))
-                        .foregroundStyle(AppTheme.mutedText)
-                }
-
-                Spacer()
-
-                if isHighlighted {
-                    InfoBadge(title: "Current stage", tint: AppTheme.accent)
-                }
-            }
-
-            HStack(spacing: 10) {
-                InfoBadge(title: stage.nextRangeLabel, tint: AppTheme.accentSecondary)
-                InfoBadge(title: stage.practiceRangeLabel, tint: AppTheme.warm)
+            HStack(spacing: 8) {
+                InfoBadge(title: "Target \(targetRating)", tint: AppTheme.accent)
+                InfoBadge(title: targetStage.practiceRangeLabel, tint: AppTheme.warm)
+                InfoBadge(title: targetStage.nextRangeLabel, tint: AppTheme.accentSecondary)
             }
 
             VStack(alignment: .leading, spacing: 10) {
-                Text("Topics to learn")
+                Text("Topics")
                     .font(.system(.subheadline, design: .rounded).weight(.bold))
                     .foregroundStyle(AppTheme.text)
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
-                        ForEach(stage.topicsToLearn, id: \.self) { topic in
+                        ForEach(targetStage.topicsToLearn, id: \.self) { topic in
                             Text(topic)
-                                .font(.system(.caption, design: .rounded).weight(.medium))
+                                .font(.system(.caption, design: .rounded).weight(.semibold))
                                 .foregroundStyle(AppTheme.accentSecondary)
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 6)
@@ -133,61 +73,57 @@ struct RoadmapView: View {
             }
 
             VStack(alignment: .leading, spacing: 10) {
-                Text("What to do next")
+                Text("Focus")
                     .font(.system(.subheadline, design: .rounded).weight(.bold))
                     .foregroundStyle(AppTheme.text)
 
-                ForEach(stage.focusPoints, id: \.self) { focusPoint in
-                    HStack(alignment: .top, spacing: 10) {
+                ForEach(targetStage.focusPoints, id: \.self) { point in
+                    HStack(alignment: .top, spacing: 8) {
                         Circle()
-                            .fill(isHighlighted ? AppTheme.accent : AppTheme.cardBorder)
+                            .fill(AppTheme.accent)
                             .frame(width: 8, height: 8)
-                            .padding(.top, 6)
+                            .padding(.top, 5)
 
-                        Text(focusPoint)
+                        Text(point)
                             .font(.system(.subheadline, design: .rounded))
                             .foregroundStyle(AppTheme.mutedText)
                     }
                 }
             }
         }
-        .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(isHighlighted ? AppTheme.card : Color.white.opacity(0.84))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 28, style: .continuous)
-                        .stroke(isHighlighted ? AppTheme.accent.opacity(0.35) : AppTheme.cardBorder, lineWidth: 1)
-                )
-                .shadow(color: Color.black.opacity(isHighlighted ? 0.08 : 0.04), radius: 18, x: 0, y: 10)
-        )
+        .appCard()
     }
 
-    private func syncSelectedHandle() {
-        if selectedHandle.isEmpty {
-            selectedHandle = sessionStore.currentUser?.primaryHandle ?? handles.first?.handle ?? ""
-            return
-        }
+    private func stageRow(_ stage: RoadmapStage) -> some View {
+        let isSelected = stage.id == targetStage.id
 
-        if !handles.contains(where: { $0.handle == selectedHandle }) {
-            selectedHandle = sessionStore.currentUser?.primaryHandle ?? handles.first?.handle ?? ""
+        return HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(stage.title)
+                    .font(.system(.subheadline, design: .rounded).weight(.bold))
+                    .foregroundStyle(AppTheme.text)
+
+                Text("\(stage.ratingRange.lowerBound)-\(stage.ratingRange.upperBound)")
+                    .font(.system(.caption, design: .rounded))
+                    .foregroundStyle(AppTheme.mutedText)
+            }
+
+            Spacer()
+
+            if isSelected {
+                InfoBadge(title: "Selected", tint: AppTheme.accent)
+            }
         }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(isSelected ? AppTheme.background : Color.white.opacity(0.84))
+        )
     }
 }
 
 #Preview {
-    let session = SessionStore(previewUser: UserProfile(
-        email: "demo@example.com",
-        fullName: "Demo User",
-        mobileNumber: "+8801000000000",
-        universityName: "Demo University",
-        handles: [
-            TrackedHandle(handle: "tourist", label: "Main", isPrimary: true)
-        ]
-    ))
-
-    return NavigationStack {
+    NavigationStack {
         RoadmapView()
-            .environmentObject(session)
     }
 }

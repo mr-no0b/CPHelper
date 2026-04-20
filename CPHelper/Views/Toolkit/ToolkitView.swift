@@ -8,40 +8,52 @@ struct ToolkitView: View {
             AppBackdrop()
 
             ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 20) {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Practice toolkit")
-                            .font(.system(size: 34, weight: .bold, design: .rounded))
-                            .foregroundStyle(AppTheme.text)
+                VStack(alignment: .leading, spacing: 18) {
+                    Text("Toolkit")
+                        .font(.system(size: 34, weight: .bold, design: .rounded))
+                        .foregroundStyle(AppTheme.text)
 
-                        Text("Suggested problems, weak-area targeting, rating roadmap guidance, and a todo list built around real Codeforces handles.")
-                            .font(.system(.body, design: .rounded))
-                            .foregroundStyle(AppTheme.mutedText)
-                    }
-
-                    VStack(spacing: 16) {
-                        NavigationLink(destination: SuggestedProblemsView()) {
+                    VStack(spacing: 14) {
+                        NavigationLink(destination: AnalyzeHandleView()) {
                             ToolkitCard(
-                                title: "Suggested Problems",
-                                subtitle: "Live Codeforces recommendations based on rating band and solved history.",
-                                icon: "wand.and.stars.inverse",
+                                title: "Analyze",
+                                subtitle: "Analyze any public handle.",
+                                icon: "chart.xyaxis.line",
                                 tint: AppTheme.accent
                             )
                         }
 
-                        NavigationLink(destination: WeakAreasView()) {
+                        NavigationLink(destination: FriendsView()) {
                             ToolkitCard(
-                                title: "Weak Areas",
-                                subtitle: "See low-conversion topics and targeted follow-up practice with pie charts.",
-                                icon: "chart.pie.fill",
-                                tint: AppTheme.warning
+                                title: "Friends",
+                                subtitle: "\(sessionStore.currentUser?.friends.count ?? 0) saved friend profiles.",
+                                icon: "person.2.fill",
+                                tint: AppTheme.accentSecondary
+                            )
+                        }
+
+                        NavigationLink(destination: ContestCalendarView()) {
+                            ToolkitCard(
+                                title: "Contest Calendar",
+                                subtitle: "Upcoming contests and registration tracking.",
+                                icon: "calendar.badge.clock",
+                                tint: AppTheme.warm
+                            )
+                        }
+
+                        NavigationLink(destination: SuggestedProblemsView()) {
+                            ToolkitCard(
+                                title: "Suggested Problems",
+                                subtitle: "Rating suggestions, weak tags, and targeted fixes.",
+                                icon: "sparkles.rectangle.stack.fill",
+                                tint: AppTheme.accent
                             )
                         }
 
                         NavigationLink(destination: PracticeListView()) {
                             ToolkitCard(
-                                title: "Todo List",
-                                subtitle: "\(sessionStore.currentUser?.todoProblems.count ?? 0) saved Codeforces problems across your tracked handles.",
+                                title: "ToDo",
+                                subtitle: "\(sessionStore.currentUser?.todoProblems.count ?? 0) saved problems.",
                                 icon: "checklist.checked",
                                 tint: AppTheme.success
                             )
@@ -50,27 +62,18 @@ struct ToolkitView: View {
                         NavigationLink(destination: RoadmapView()) {
                             ToolkitCard(
                                 title: "Roadmap",
-                                subtitle: "Static training stages for climbing from one rating band to the next.",
+                                subtitle: "Static target-rating roadmap.",
                                 icon: "map.fill",
-                                tint: AppTheme.warm
-                            )
-                        }
-
-                        NavigationLink(destination: ContestCalendarView()) {
-                            ToolkitCard(
-                                title: "Contest Calendar",
-                                subtitle: "Upcoming Codeforces contests with local registration tracking and reminder timing.",
-                                icon: "calendar.badge.clock",
-                                tint: AppTheme.accentSecondary
+                                tint: AppTheme.warning
                             )
                         }
 
                         NavigationLink(destination: TutorialListView()) {
                             ToolkitCard(
-                                title: "Algorithm Tutorials",
-                                subtitle: "Fetch the full cp-algorithms catalog and open polished in-app tutorial detail pages.",
+                                title: "Tutorials",
+                                subtitle: "cp-algorithms with in-app summaries.",
                                 icon: "book.pages.fill",
-                                tint: AppTheme.accent
+                                tint: AppTheme.accentSecondary
                             )
                         }
                     }
@@ -94,13 +97,13 @@ private struct ToolkitCard: View {
             Image(systemName: icon)
                 .font(.system(size: 22, weight: .semibold))
                 .foregroundStyle(tint)
-                .frame(width: 58, height: 58)
+                .frame(width: 56, height: 56)
                 .background(
                     RoundedRectangle(cornerRadius: 18, style: .continuous)
                         .fill(tint.opacity(0.12))
                 )
 
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.system(.headline, design: .rounded).weight(.bold))
                     .foregroundStyle(AppTheme.text)
@@ -108,13 +111,12 @@ private struct ToolkitCard: View {
                 Text(subtitle)
                     .font(.system(.subheadline, design: .rounded))
                     .foregroundStyle(AppTheme.mutedText)
-                    .multilineTextAlignment(.leading)
             }
 
             Spacer()
 
             Image(systemName: "arrow.right")
-                .font(.system(size: 15, weight: .bold))
+                .font(.system(size: 14, weight: .bold))
                 .foregroundStyle(AppTheme.mutedText)
         }
         .appCard()

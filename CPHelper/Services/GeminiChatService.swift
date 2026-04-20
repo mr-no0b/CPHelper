@@ -169,7 +169,7 @@ actor GeminiChatService {
     private func buildSystemPrompt(context: CPChatContextSnapshot) -> String {
         let trackedHandlesSummary: String
         if context.handleInsights.isEmpty {
-            trackedHandlesSummary = "No handle analysis is loaded yet. Use only visible tracked handles and ask clarifying questions when needed."
+            trackedHandlesSummary = "No handle analysis is loaded yet."
         } else {
             trackedHandlesSummary = context.handleInsights.map { insight in
                 let currentRating = insight.currentRating.map(String.init) ?? "Unrated"
@@ -183,6 +183,11 @@ actor GeminiChatService {
             }
             .joined(separator: "\n")
         }
+
+        let profileSummary = """
+        Primary handle: \(context.primaryHandle ?? "Not set")
+        Friends: \(context.friends.map(\.handle).joined(separator: ", ").ifEmpty("None"))
+        """
 
         let problemSummary: String
         if let problem = context.currentProblem {
@@ -206,10 +211,18 @@ actor GeminiChatService {
         Never claim you know Codeforces contest registration unless it is explicitly provided by the app.
         Avoid markdown tables.
         User name: \(context.userName)
-        Tracked handles:
+        Profile:
+        \(profileSummary)
+        Loaded handles:
         \(trackedHandlesSummary)
         \(problemSummary)
         Reply only to the user's latest message while using this context.
         """
+    }
+}
+
+private extension String {
+    func ifEmpty(_ fallback: @autoclosure () -> String) -> String {
+        isEmpty ? fallback() : self
     }
 }

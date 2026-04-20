@@ -11,6 +11,7 @@ enum GoogleServiceConfiguration {
 
         return localSecretsValue(forKey: "GEMINI_API_KEY")
             ?? value(forKey: "GEMINI_API_KEY")
+            ?? value(forKey: "API_KEY")
     }
 
     static func value(forKey key: String) -> String? {

@@ -34,6 +34,11 @@ actor CodeforcesProblemCatalogService {
         let problems: [CodeforcesProblem]
     }
 
+    private struct ProblemLocator {
+        let contestId: Int
+        let index: String
+    }
+
     private let session: URLSession
     private let decoder = JSONDecoder()
     private let encoder: JSONEncoder
@@ -80,7 +85,26 @@ actor CodeforcesProblemCatalogService {
                 return diskCache.problems
             }
 
+            let fallbackProblems = loadBundleFallbackProblemset()
+            if !fallbackProblems.isEmpty {
+                let cached = CachedProblemset(fetchedAt: .now, problems: fallbackProblems)
+                memoryCache = cached
+                return fallbackProblems
+            }
+
             throw error
+        }
+    }
+
+    func problem(for rawURL: String) async throws -> CodeforcesProblem? {
+        guard let locator = parseProblemLocator(from: rawURL) else {
+            return nil
+        }
+
+        let catalog = try await loadProblemset()
+        return catalog.first {
+            $0.contestId == locator.contestId
+                && $0.index.caseInsensitiveCompare(locator.index) == .orderedSame
         }
     }
 
@@ -137,6 +161,51 @@ actor CodeforcesProblemCatalogService {
             }
             return (lhs.rating ?? Int.max) < (rhs.rating ?? Int.max)
         }
+    }
+
+    private func parseProblemLocator(from rawURL: String) -> ProblemLocator? {
+        let trimmed = rawURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalized = trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://")
+            ? trimmed
+            : "https://\(trimmed)"
+
+        guard let url = URL(string: normalized),
+              let host = url.host?.lowercased(),
+              host.contains("codeforces.com") else {
+            return nil
+        }
+
+        let components = url.pathComponents.filter { $0 != "/" }
+
+        if components.count >= 4,
+           components[0] == "problemset",
+           components[1] == "problem",
+           let contestId = Int(components[2]) {
+            return ProblemLocator(contestId: contestId, index: components[3].uppercased())
+        }
+
+        if components.count >= 4,
+           components[0] == "contest",
+           let contestId = Int(components[1]),
+           components[2] == "problem" {
+            return ProblemLocator(contestId: contestId, index: components[3].uppercased())
+        }
+
+        return nil
+    }
+
+    private func loadBundleFallbackProblemset() -> [CodeforcesProblem] {
+        guard let url = Bundle.main.url(forResource: "problemset_fallback", withExtension: "json", subdirectory: "Resources")
+                ?? Bundle.main.url(forResource: "problemset_fallback", withExtension: "json") else {
+            return []
+        }
+
+        guard let data = try? Data(contentsOf: url),
+              let problems = try? decoder.decode([CodeforcesProblem].self, from: data) else {
+            return []
+        }
+
+        return problems
     }
 
     private func loadDiskCache() throws -> CachedProblemset {

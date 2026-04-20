@@ -5,10 +5,10 @@ struct ContestCalendarView: View {
     @EnvironmentObject private var sessionStore: SessionStore
 
     @State private var webDestination: WebDestination?
-    @State private var updatingRegistrationID: String?
+    @State private var updatingContestID: Int?
 
-    private var handles: [TrackedHandle] {
-        sessionStore.currentUser?.handles ?? []
+    private var primaryHandle: String? {
+        sessionStore.currentUser?.primaryHandle
     }
 
     private struct ContestDayGroup: Identifiable {
@@ -36,14 +36,14 @@ struct ContestCalendarView: View {
             AppBackdrop()
 
             ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 18) {
                     heroCard
 
                     if contestCenter.isLoading && contestCenter.upcomingContests.isEmpty {
                         InlineMessageCard(
                             icon: "calendar.badge.clock",
-                            title: "Loading upcoming contests",
-                            detail: "Fetching the next Codeforces rounds and syncing your reminder timeline."
+                            title: "Loading contests",
+                            detail: "Fetching schedule."
                         )
                     } else if let errorMessage = contestCenter.errorMessage, contestCenter.upcomingContests.isEmpty {
                         InlineMessageCard(
@@ -55,7 +55,7 @@ struct ContestCalendarView: View {
                         InlineMessageCard(
                             icon: "calendar",
                             title: "No upcoming contests",
-                            detail: "Codeforces is not showing any scheduled upcoming contests right now."
+                            detail: "Nothing scheduled right now."
                         )
                     } else {
                         ForEach(groupedContests) { group in
@@ -77,56 +77,33 @@ struct ContestCalendarView: View {
     }
 
     private var heroCard: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            SectionTitle(
-                title: "Upcoming Codeforces contests",
-                subtitle: "Track the next rounds, mark which handles are registered, and keep reminder timing in sync."
-            )
+        VStack(alignment: .leading, spacing: 14) {
+            SectionTitle(title: "Contest Calendar", subtitle: "Upcoming rounds")
 
             if let nextContest = contestCenter.upcomingContests.first {
-                HStack(alignment: .top, spacing: 14) {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text(nextContest.name)
-                            .font(.system(.title3, design: .rounded).weight(.bold))
-                            .foregroundStyle(AppTheme.text)
+                Text(nextContest.name)
+                    .font(.system(.title3, design: .rounded).weight(.bold))
+                    .foregroundStyle(AppTheme.text)
 
-                        HStack(spacing: 8) {
-                            InfoBadge(title: nextContest.roundBadge, tint: AppTheme.accent)
-                            InfoBadge(title: nextContest.countdownLabel, tint: AppTheme.warm)
-                        }
-
-                        Text("Starts \(nextContest.startDateLabel) • Duration \(nextContest.durationLabel)")
-                            .font(.system(.subheadline, design: .rounded))
-                            .foregroundStyle(AppTheme.mutedText)
-                    }
-
-                    Spacer()
+                HStack(spacing: 8) {
+                    InfoBadge(title: nextContest.roundBadge, tint: AppTheme.accent)
+                    InfoBadge(title: nextContest.countdownLabel, tint: AppTheme.warm)
+                    InfoBadge(title: nextContest.durationLabel, tint: AppTheme.accentSecondary)
                 }
             }
 
             if contestCenter.permissionState != .granted {
                 HStack(spacing: 12) {
                     Image(systemName: "bell.badge")
-                        .font(.system(size: 20, weight: .semibold))
                         .foregroundStyle(AppTheme.warning)
 
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Contest reminders are not fully enabled yet.")
-                            .font(.system(.subheadline, design: .rounded).weight(.bold))
-                            .foregroundStyle(AppTheme.text)
-
-                        Text("Enable notifications so the app can warn you 24 hours, 3 hours, and 1 hour before each contest.")
-                            .font(.system(.footnote, design: .rounded))
-                            .foregroundStyle(AppTheme.mutedText)
-                    }
+                    Text(contestCenter.permissionState == .denied ? "Notifications are off in Settings." : "Enable contest reminders.")
+                        .font(.system(.subheadline, design: .rounded))
+                        .foregroundStyle(AppTheme.mutedText)
 
                     Spacer()
 
-                    if contestCenter.permissionState == .denied {
-                        Text("Turn on in Settings")
-                            .font(.system(.footnote, design: .rounded).weight(.semibold))
-                            .foregroundStyle(AppTheme.warning)
-                    } else {
+                    if contestCenter.permissionState == .unknown {
                         Button("Enable") {
                             Task {
                                 await contestCenter.requestAuthorizationIfNeeded()
@@ -135,18 +112,13 @@ struct ContestCalendarView: View {
                         .buttonStyle(AppSecondaryButtonStyle())
                     }
                 }
-                .padding(16)
-                .background(
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .fill(AppTheme.warning.opacity(0.10))
-                )
             }
         }
         .appCard()
     }
 
     private func daySection(_ day: Date, contests: [CodeforcesContest]) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 14) {
             Text(ContestDayFormatting.sectionHeader.string(from: day))
                 .font(.system(.headline, design: .rounded).weight(.bold))
                 .foregroundStyle(AppTheme.text)
@@ -158,52 +130,75 @@ struct ContestCalendarView: View {
     }
 
     private func contestCard(_ contest: CodeforcesContest) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top, spacing: 14) {
-                VStack(alignment: .leading, spacing: 10) {
+        let isRegistered = contestCenter.isRegistered(for: contest, user: sessionStore.currentUser)
+
+        return VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 8) {
                     Text(contest.name)
                         .font(.system(.headline, design: .rounded).weight(.bold))
                         .foregroundStyle(AppTheme.text)
 
                     HStack(spacing: 8) {
-                        InfoBadge(title: contest.roundBadge, tint: AppTheme.accent)
-                        InfoBadge(title: contest.shortStartTimeLabel, tint: AppTheme.accentSecondary)
-                        InfoBadge(title: contest.durationLabel, tint: AppTheme.warm)
+                        InfoBadge(title: contest.shortStartTimeLabel, tint: AppTheme.accent)
+                        InfoBadge(title: contest.countdownLabel, tint: AppTheme.warm)
                     }
                 }
 
                 Spacer()
-
-                Text(contest.countdownLabel)
-                    .font(.system(.subheadline, design: .rounded).weight(.semibold))
-                    .foregroundStyle(AppTheme.accent)
             }
 
-            Text("Registration status is tracked locally in the app because Codeforces does not expose public per-handle pre-registration state through its API.")
+            Text(contestCenter.registrationSummary(for: contest, user: sessionStore.currentUser))
                 .font(.system(.footnote, design: .rounded))
                 .foregroundStyle(AppTheme.mutedText)
 
-            if handles.isEmpty {
-                Text("Add Codeforces handles in your profile to track registration reminders.")
-                    .font(.system(.subheadline, design: .rounded))
-                    .foregroundStyle(AppTheme.mutedText)
-            } else {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Tracked handles")
-                        .font(.system(.subheadline, design: .rounded).weight(.bold))
-                        .foregroundStyle(AppTheme.text)
+            if let primaryHandle, !primaryHandle.isEmpty {
+                Button {
+                    Task {
+                        updatingContestID = contest.id
+                        defer { updatingContestID = nil }
 
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                        ForEach(handles) { handle in
-                            registrationToggle(for: handle, contest: contest)
+                        do {
+                            try await sessionStore.setContestRegistration(
+                                contestId: contest.id,
+                                handle: primaryHandle,
+                                isRegistered: !isRegistered
+                            )
+                            await contestCenter.refresh(for: sessionStore.currentUser, force: true)
+                        } catch {
+                            contestCenter.errorMessage = error.localizedDescription
                         }
                     }
+                } label: {
+                    HStack(spacing: 10) {
+                        if updatingContestID == contest.id {
+                            ProgressView().tint(isRegistered ? AppTheme.success : AppTheme.warning)
+                        } else {
+                            Image(systemName: isRegistered ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
+                                .foregroundStyle(isRegistered ? AppTheme.success : AppTheme.warning)
+                        }
+
+                        Text(isRegistered ? "Marked registered" : "Mark registered")
+                            .font(.system(.subheadline, design: .rounded).weight(.semibold))
+                            .foregroundStyle(AppTheme.text)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .fill((isRegistered ? AppTheme.success : AppTheme.warning).opacity(0.12))
+                    )
                 }
+                .buttonStyle(.plain)
+            } else {
+                Text("Add your primary handle in Profile to track registration.")
+                    .font(.system(.footnote, design: .rounded))
+                    .foregroundStyle(AppTheme.mutedText)
             }
 
             HStack(spacing: 10) {
                 PracticeActionButton(
-                    title: "Open contest",
+                    title: "Open Contest",
                     systemImage: "arrow.up.right.square",
                     tint: AppTheme.accent,
                     action: {
@@ -212,8 +207,8 @@ struct ContestCalendarView: View {
                 )
 
                 PracticeActionButton(
-                    title: "Refresh reminders",
-                    systemImage: "bell.badge",
+                    title: "Refresh",
+                    systemImage: "arrow.clockwise",
                     tint: AppTheme.accentSecondary,
                     action: {
                         Task {
@@ -224,58 +219,6 @@ struct ContestCalendarView: View {
             }
         }
         .appCard()
-    }
-
-    private func registrationToggle(for handle: TrackedHandle, contest: CodeforcesContest) -> some View {
-        let isRegistered = contestCenter.isHandleRegistered(handle.handle, for: contest, user: sessionStore.currentUser)
-        let registrationID = "\(contest.id)::\(handle.handle.lowercased())"
-
-        return Button {
-            Task {
-                updatingRegistrationID = registrationID
-                defer { updatingRegistrationID = nil }
-
-                do {
-                    try await sessionStore.setContestRegistration(
-                        contestId: contest.id,
-                        handle: handle.handle,
-                        isRegistered: !isRegistered
-                    )
-                    await contestCenter.refresh(for: sessionStore.currentUser, force: true)
-                } catch {
-                    contestCenter.errorMessage = error.localizedDescription
-                }
-            }
-        } label: {
-            HStack(spacing: 10) {
-                if updatingRegistrationID == registrationID {
-                    ProgressView()
-                        .tint(isRegistered ? AppTheme.success : AppTheme.warning)
-                } else {
-                    Image(systemName: isRegistered ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
-                        .foregroundStyle(isRegistered ? AppTheme.success : AppTheme.warning)
-                }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(handle.handle)
-                        .font(.system(.subheadline, design: .rounded).weight(.bold))
-                        .foregroundStyle(AppTheme.text)
-
-                    Text(isRegistered ? "Marked registered" : "Needs registration")
-                        .font(.system(.caption, design: .rounded))
-                        .foregroundStyle(AppTheme.mutedText)
-                }
-
-                Spacer()
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill((isRegistered ? AppTheme.success : AppTheme.warning).opacity(0.12))
-            )
-        }
-        .buttonStyle(.plain)
     }
 }
 
@@ -293,10 +236,7 @@ private enum ContestDayFormatting {
         fullName: "Demo User",
         mobileNumber: "+8801000000000",
         universityName: "Demo University",
-        handles: [
-            TrackedHandle(handle: "tourist", label: "Main", isPrimary: true),
-            TrackedHandle(handle: "Benq", label: "Alt")
-        ]
+        primaryHandle: "tourist"
     ))
 
     return NavigationStack {
