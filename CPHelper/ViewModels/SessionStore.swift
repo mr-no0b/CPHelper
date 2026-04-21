@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 
 @MainActor
@@ -6,18 +7,18 @@ final class SessionStore: ObservableObject {
     @Published private(set) var isBootstrapping = true
     @Published private(set) var isWorking = false
 
-    private let accountStore: FirebaseAccountStore
+    private let providedAccountStore: FirebaseAccountStore?
 
-    init(accountStore: FirebaseAccountStore = .shared) {
-        self.accountStore = accountStore
+    private var accountStore: FirebaseAccountStore {
+        providedAccountStore ?? .shared
+    }
 
-        Task {
-            await restoreSession()
-        }
+    init(accountStore: FirebaseAccountStore? = nil) {
+        self.providedAccountStore = accountStore
     }
 
     init(previewUser: UserProfile?) {
-        self.accountStore = .shared
+        self.providedAccountStore = nil
         self.currentUser = previewUser
         self.isBootstrapping = false
         self.isWorking = false
@@ -25,6 +26,11 @@ final class SessionStore: ObservableObject {
 
     var isAuthenticated: Bool {
         currentUser != nil
+    }
+
+    func restoreSessionIfNeeded() async {
+        guard isBootstrapping else { return }
+        await restoreSession()
     }
 
     func restoreSession() async {

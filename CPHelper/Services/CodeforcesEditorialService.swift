@@ -43,8 +43,10 @@ actor CodeforcesEditorialService {
         if rawHref.hasPrefix("http://") || rawHref.hasPrefix("https://") {
             resolvedURL = URL(string: rawHref)
         } else {
-            resolvedURL = URL(string: rawHref, relativeTo: URL(string: "https://codeforces.com"))
-                ?.absoluteURL
+            resolvedURL = URL(
+                string: rawHref,
+                relativeTo: URL(string: "https://codeforces.com")
+            )?.absoluteURL
         }
 
         guard let resolvedURL else {

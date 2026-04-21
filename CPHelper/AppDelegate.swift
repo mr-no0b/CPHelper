@@ -2,14 +2,26 @@ import UIKit
 import UserNotifications
 import FirebaseCore
 
-final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+enum FirebaseBootstrap {
+    private static let lock = NSLock()
+    private static var isConfigured = false
+
+    static func configureIfNeeded() {
+        lock.lock()
+        defer { lock.unlock() }
+
+        guard !isConfigured else { return }
+        FirebaseApp.configure()
+        isConfigured = true
+    }
+}
+
+final class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
-        if FirebaseApp.app() == nil {
-            FirebaseApp.configure()
-        }
+        FirebaseBootstrap.configureIfNeeded()
         UNUserNotificationCenter.current().delegate = self
         return true
     }

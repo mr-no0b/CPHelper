@@ -28,12 +28,6 @@ struct AuthView: View {
             Text("Firebase-backed profiles, one primary handle, friends, analysis, contests, and practice tools.")
                 .font(.system(.body, design: .rounded))
                 .foregroundStyle(AppTheme.mutedText)
-
-            HStack(spacing: 12) {
-                MetricChip(title: "Auth", value: "Firebase")
-                MetricChip(title: "Profiles", value: "Primary + friends")
-                MetricChip(title: "Analysis", value: "Live CF data")
-            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.top, 10)

@@ -2,6 +2,7 @@ import Foundation
 import FirebaseAuth
 import FirebaseCore
 import FirebaseFirestore
+import OSLog
 
 enum AccountStoreError: LocalizedError {
     case invalidFullName
@@ -11,6 +12,13 @@ enum AccountStoreError: LocalizedError {
     case passwordMismatch
     case duplicateFriend
     case invalidCredentials
+    case emailAlreadyInUse
+    case signInProviderDisabled
+    case firebaseConfigurationMissing
+    case invalidFirebaseAPIKey
+    case firebaseServerError(String)
+    case networkUnavailable
+    case tooManyRequests
     case accountNotFound
     case missingPrimaryHandle
     case invalidProblemLink
@@ -31,6 +39,20 @@ enum AccountStoreError: LocalizedError {
             return "That friend handle is already added."
         case .invalidCredentials:
             return "Incorrect email or password."
+        case .emailAlreadyInUse:
+            return "An account already exists for this email address."
+        case .signInProviderDisabled:
+            return "Email/password sign-in is disabled for this Firebase project. Enable it in Firebase Authentication."
+        case .firebaseConfigurationMissing:
+            return "Firebase Authentication is not configured for this project. In Firebase Console, open Authentication and enable Email/Password sign-in."
+        case .invalidFirebaseAPIKey:
+            return "Firebase rejected this app's API key. Check that GoogleService-Info.plist belongs to this Firebase project and bundle ID."
+        case .firebaseServerError(let message):
+            return "Firebase Auth rejected the request: \(message)"
+        case .networkUnavailable:
+            return "Could not reach Firebase. Check your internet connection and try again."
+        case .tooManyRequests:
+            return "Firebase temporarily blocked this request because of too many attempts. Try again later."
         case .accountNotFound:
             return "We could not find that account."
         case .missingPrimaryHandle:
@@ -49,6 +71,7 @@ actor FirebaseAccountStore {
     private let cacheStore: ProfileCacheStore
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
+    private let logger = Logger(subsystem: "lalon.CPHelper", category: "FirebaseAccountStore")
     private let collectionName = "users"
 
     init(
@@ -56,10 +79,6 @@ actor FirebaseAccountStore {
         database: Firestore? = nil,
         cacheStore: ProfileCacheStore = ProfileCacheStore()
     ) {
-        if FirebaseApp.app() == nil {
-            FirebaseApp.configure()
-        }
-
         self.auth = auth ?? Auth.auth()
         self.database = database ?? Firestore.firestore()
         self.cacheStore = cacheStore
@@ -128,8 +147,7 @@ actor FirebaseAccountStore {
                 primaryHandle: primaryHandle.isEmpty ? nil : primaryHandle
             )
 
-            try await saveProfile(profile)
-            try? await cacheStore.save(profile)
+            try await persistProfile(profile)
             return profile
         } catch let error as NSError {
             throw mapAuthError(error)
@@ -157,8 +175,7 @@ actor FirebaseAccountStore {
         guard isValidEmail(normalizedEmail) else { throw AccountStoreError.invalidEmail }
         guard isValidPhone(updatedProfile.mobileNumber) else { throw AccountStoreError.invalidMobileNumber }
 
-        try await saveProfile(updatedProfile)
-        try? await cacheStore.save(updatedProfile)
+        try await persistProfile(updatedProfile)
         return updatedProfile
     }
 
@@ -252,21 +269,27 @@ actor FirebaseAccountStore {
 
     private func loadOrCreateProfile(for firebaseUser: FirebaseAuth.User) async throws -> UserProfile {
         let reference = userDocument(userID: firebaseUser.uid)
-        let snapshot = try await reference.getDocument()
+        do {
+            let snapshot = try await reference.getDocument()
 
-        if let data = snapshot.data() {
-            return try decodeProfile(from: data)
+            if let data = snapshot.data() {
+                let profile = try decodeProfile(from: data)
+                try? await cacheStore.save(profile)
+                return profile
+            }
+
+            let profile = fallbackProfile(for: firebaseUser)
+            try await persistProfile(profile)
+            return profile
+        } catch {
+            if let cached = try? await cacheStore.load(userID: firebaseUser.uid) {
+                logger.warning("Using cached profile after remote profile load failed: \(error.localizedDescription, privacy: .public)")
+                return cached
+            }
+
+            logger.warning("Using fallback Firebase Auth profile after remote profile load failed: \(error.localizedDescription, privacy: .public)")
+            return fallbackProfile(for: firebaseUser)
         }
-
-        let profile = UserProfile(
-            id: firebaseUser.uid,
-            email: firebaseUser.email ?? "",
-            fullName: firebaseUser.displayName ?? "",
-            mobileNumber: ""
-        )
-
-        try await saveProfile(profile)
-        return profile
     }
 
     private func saveProfile(_ profile: UserProfile) async throws {
@@ -278,29 +301,68 @@ actor FirebaseAccountStore {
         mutation: (inout UserProfile) throws -> Void
     ) async throws -> UserProfile {
         let reference = userDocument(userID: userID)
-        let snapshot = try await reference.getDocument()
-
-        let profile: UserProfile
-        if let data = snapshot.data() {
-            profile = try decodeProfile(from: data)
-        } else if let authUser = auth.currentUser, authUser.uid == userID {
-            profile = UserProfile(
-                id: authUser.uid,
-                email: authUser.email ?? "",
-                fullName: authUser.displayName ?? "",
-                mobileNumber: ""
-            )
-        } else {
-            throw AccountStoreError.accountNotFound
-        }
+        let profile = try await loadProfileForMutation(reference: reference, userID: userID)
 
         var updatedProfile = profile
         try mutation(&updatedProfile)
         updatedProfile.updatedAt = .now
 
-        try await saveProfile(updatedProfile)
-        try? await cacheStore.save(updatedProfile)
+        try await persistProfile(updatedProfile)
         return updatedProfile
+    }
+
+    private func loadProfileForMutation(reference: DocumentReference, userID: String) async throws -> UserProfile {
+        do {
+            let snapshot = try await reference.getDocument()
+
+            if let data = snapshot.data() {
+                return try decodeProfile(from: data)
+            }
+        } catch {
+            logger.warning("Remote profile load failed before mutation: \(error.localizedDescription, privacy: .public)")
+        }
+
+        if let cached = try? await cacheStore.load(userID: userID) {
+            return cached
+        }
+
+        if let authUser = auth.currentUser, authUser.uid == userID {
+            return fallbackProfile(for: authUser)
+        }
+
+        throw AccountStoreError.accountNotFound
+    }
+
+    private func fallbackProfile(for firebaseUser: FirebaseAuth.User) -> UserProfile {
+        UserProfile(
+            id: firebaseUser.uid,
+            email: firebaseUser.email ?? "",
+            fullName: firebaseUser.displayName ?? "",
+            mobileNumber: ""
+        )
+    }
+
+    private func persistProfile(_ profile: UserProfile) async throws {
+        var didSaveRemote = false
+        var remoteError: Error?
+
+        do {
+            try await saveProfile(profile)
+            didSaveRemote = true
+        } catch {
+            remoteError = error
+            logger.warning("Remote profile sync failed; continuing with local cache if possible: \(error.localizedDescription, privacy: .public)")
+        }
+
+        do {
+            try await cacheStore.save(profile)
+        } catch {
+            guard didSaveRemote else {
+                throw remoteError ?? error
+            }
+
+            logger.warning("Local profile cache save failed after remote sync succeeded: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     private func userDocument(userID: String) -> DocumentReference {
@@ -340,15 +402,114 @@ actor FirebaseAccountStore {
     }
 
     private func mapAuthError(_ error: NSError) -> Error {
+        logger.error("Firebase Auth error details: \(self.describe(error), privacy: .public)")
+
+        if let serverMessage = firebaseServerMessage(from: error) {
+            let normalized = serverMessage.uppercased()
+
+            if normalized.contains("CONFIGURATION_NOT_FOUND") {
+                return AccountStoreError.firebaseConfigurationMissing
+            }
+
+            if normalized.contains("OPERATION_NOT_ALLOWED") {
+                return AccountStoreError.signInProviderDisabled
+            }
+
+            if normalized.contains("API_KEY_INVALID") || normalized.contains("INVALID_API_KEY") {
+                return AccountStoreError.invalidFirebaseAPIKey
+            }
+
+            return AccountStoreError.firebaseServerError(serverMessage)
+        }
+
         let code = AuthErrorCode(rawValue: error.code)
 
         switch code {
         case .some(.wrongPassword), .some(.invalidCredential), .some(.invalidEmail), .some(.userNotFound):
             return AccountStoreError.invalidCredentials
         case .some(.emailAlreadyInUse):
-            return error
+            return AccountStoreError.emailAlreadyInUse
+        case .some(.operationNotAllowed):
+            return AccountStoreError.signInProviderDisabled
+        case .some(.networkError):
+            return AccountStoreError.networkUnavailable
+        case .some(.tooManyRequests):
+            return AccountStoreError.tooManyRequests
         default:
             return error
         }
+    }
+
+    private func firebaseServerMessage(from error: NSError) -> String? {
+        let responseKey = "FIRAuthErrorUserInfoDeserializedResponseKey"
+
+        if let response = error.userInfo[responseKey],
+           let message = message(fromFirebaseResponse: response) {
+            return message
+        }
+
+        if let data = error.userInfo["FIRAuthErrorUserInfoDataKey"] as? Data,
+           let object = try? JSONSerialization.jsonObject(with: data),
+           let message = message(fromFirebaseResponse: object) {
+            return message
+        }
+
+        if let underlying = error.userInfo[NSUnderlyingErrorKey] as? NSError {
+            return firebaseServerMessage(from: underlying)
+        }
+
+        return nil
+    }
+
+    private func message(fromFirebaseResponse response: Any) -> String? {
+        guard let dictionary = response as? [String: Any] else {
+            return String(describing: response)
+        }
+
+        if let error = dictionary["error"] as? [String: Any] {
+            if let message = error["message"] as? String, !message.isEmpty {
+                return message
+            }
+
+            if let status = error["status"] as? String, !status.isEmpty {
+                return status
+            }
+        }
+
+        if let message = dictionary["message"] as? String, !message.isEmpty {
+            return message
+        }
+
+        if let error = dictionary["error"] as? String, !error.isEmpty {
+            return error
+        }
+
+        return nil
+    }
+
+    private func describe(_ error: NSError) -> String {
+        var parts = [
+            "domain=\(error.domain)",
+            "code=\(error.code)",
+            "description=\(error.localizedDescription)"
+        ]
+
+        if let serverMessage = firebaseServerMessage(from: error) {
+            parts.append("serverMessage=\(serverMessage)")
+        }
+
+        if let name = error.userInfo[AuthErrorUserInfoNameKey] as? String {
+            parts.append("name=\(name)")
+        }
+
+        if let failureReason = error.userInfo[NSLocalizedFailureReasonErrorKey] as? String {
+            parts.append("reason=\(failureReason)")
+        }
+
+        if let underlying = error.userInfo[NSUnderlyingErrorKey] as? NSError {
+            parts.append("underlying={\(describe(underlying))}")
+        }
+
+        return parts.joined(separator: ", ")
     }
 }

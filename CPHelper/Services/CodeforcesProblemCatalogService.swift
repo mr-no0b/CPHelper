@@ -131,12 +131,14 @@ actor CodeforcesProblemCatalogService {
             throw CodeforcesError.emptyResponse
         }
 
-        let solvedCounts = Dictionary(uniqueKeysWithValues: payload.problemStatistics.compactMap { statistic in
-            guard let contestId = statistic.contestId else { return nil }
-            return ("\(contestId)-\(statistic.index)", statistic.solvedCount)
-        })
+        let solvedCounts: [String: Int] = Dictionary(
+            uniqueKeysWithValues: payload.problemStatistics.compactMap { statistic -> (String, Int)? in
+                guard let contestId = statistic.contestId else { return nil }
+                return ("\(contestId)-\(statistic.index)", statistic.solvedCount)
+            }
+        )
 
-        return payload.problems.compactMap { problem in
+        return payload.problems.compactMap { problem -> CodeforcesProblem? in
             guard let contestId = problem.contestId else { return nil }
 
             if let type = problem.type, type != "PROGRAMMING" {

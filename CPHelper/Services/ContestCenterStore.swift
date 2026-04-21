@@ -255,7 +255,7 @@ final class ContestCenterStore: ObservableObject {
     }
 
     private func addNotificationRequest(_ request: UNNotificationRequest) async throws {
-        try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             notificationCenter.add(request) { error in
                 if let error {
                     continuation.resume(throwing: error)
