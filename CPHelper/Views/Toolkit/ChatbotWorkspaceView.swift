@@ -19,40 +19,20 @@ struct ChatbotWorkspaceView: View {
         )
     }
 
-    private var quickPrompts: [String] {
-        if let problem {
-            return [
-                "Break down \(problem.displayID)",
-                "What edge cases should I test?",
-                "Give me a calm next step."
-            ]
-        }
-
-        return [
-            "Analyze my primary handle",
-            "Explain DSU simply",
-            "Give me a 2-week roadmap",
-            "What should I do after a bad session?"
-        ]
-    }
-
     var body: some View {
         ZStack {
             AppBackdrop()
 
-            VStack(spacing: 14) {
-                headerCard
-
+            VStack(spacing: 0) {
                 if let problem {
-                    problemContextCard(problem)
+                    attachedProblemStrip(problem)
                 }
 
-                profilePulseCard
                 messagePanel
                 composerPanel
             }
             .padding(.horizontal, 20)
-            .padding(.top, 18)
+            .padding(.top, 12)
             .padding(.bottom, 12)
         }
         .navigationTitle("CP Coach")
@@ -63,113 +43,42 @@ struct ChatbotWorkspaceView: View {
         }
     }
 
-    private var headerCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("CP Coach")
-                .font(.system(size: 28, weight: .bold, design: .rounded))
-                .foregroundStyle(AppTheme.text)
+    private func attachedProblemStrip(_ problem: CodeforcesProblem) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "paperclip.circle.fill")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(AppTheme.accent)
 
-            ScrollView(.horizontal, showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("\(problem.displayID) \(problem.name)")
+                    .font(.system(.subheadline, design: .rounded).weight(.bold))
+                    .foregroundStyle(AppTheme.text)
+                    .lineLimit(2)
+
                 HStack(spacing: 8) {
-                    ForEach(quickPrompts, id: \.self) { prompt in
-                        Button {
-                            viewModel.draftMessage = prompt
-                        } label: {
-                            Text(prompt)
-                                .font(.system(.caption, design: .rounded).weight(.semibold))
-                                .foregroundStyle(AppTheme.accent)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 10)
-                                .background(
-                                    Capsule()
-                                        .fill(AppTheme.accent.opacity(0.12))
-                                )
-                        }
-                        .buttonStyle(.plain)
+                    if let rating = problem.rating {
+                        InfoBadge(title: "\(rating)", tint: AppTheme.accent)
+                    }
+
+                    if let firstTag = problem.tags.first {
+                        InfoBadge(title: firstTag, tint: AppTheme.accentSecondary)
                     }
                 }
             }
+
+            Spacer(minLength: 0)
         }
-        .appCard()
-    }
-
-    private func problemContextCard(_ problem: CodeforcesProblem) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                if let handle {
-                    InfoBadge(title: "@\(handle)", tint: AppTheme.accent)
-                }
-
-                if let rating = problem.rating {
-                    InfoBadge(title: "Rating \(rating)", tint: AppTheme.warm)
-                }
-            }
-
-            Text(problem.name)
-                .font(.system(.headline, design: .rounded).weight(.bold))
-                .foregroundStyle(AppTheme.text)
-
-            Text(problem.displayID)
-                .font(.system(.subheadline, design: .rounded))
-                .foregroundStyle(AppTheme.mutedText)
-        }
-        .appCard()
-    }
-
-    private var profilePulseCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionTitle(title: "Profile Pulse", subtitle: "Loaded handle context")
-
-            if viewModel.isPreparingContext && viewModel.handleInsights.isEmpty {
-                HStack(spacing: 12) {
-                    ProgressView()
-                        .tint(AppTheme.accent)
-
-                    Text("Loading handle context...")
-                        .font(.system(.subheadline, design: .rounded))
-                        .foregroundStyle(AppTheme.mutedText)
-                }
-            } else if viewModel.handleInsights.isEmpty {
-                Text("No handle context loaded yet.")
-                    .font(.system(.subheadline, design: .rounded))
-                    .foregroundStyle(AppTheme.mutedText)
-            } else {
-                VStack(spacing: 10) {
-                    ForEach(viewModel.handleInsights, id: \.handle) { insight in
-                        HStack(spacing: 12) {
-                            VStack(alignment: .leading, spacing: 5) {
-                                HStack(spacing: 8) {
-                                    Text("@\(insight.handle)")
-                                        .font(.system(.subheadline, design: .rounded).weight(.bold))
-                                        .foregroundStyle(AppTheme.text)
-
-                                    if insight.isPrimary {
-                                        InfoBadge(title: "Primary", tint: AppTheme.accent)
-                                    }
-                                }
-
-                                Text("\(insight.roadmapStage.title) • \(insight.solvedCount) solved")
-                                    .font(.system(.caption, design: .rounded))
-                                    .foregroundStyle(AppTheme.mutedText)
-                            }
-
-                            Spacer()
-
-                            if let currentRating = insight.currentRating {
-                                InfoBadge(title: "\(currentRating)", tint: AppTheme.warm)
-                            }
-                        }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .fill(Color.white.opacity(0.88))
-                        )
-                    }
-                }
-            }
-        }
-        .appCard()
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color.white.opacity(0.94))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(AppTheme.cardBorder, lineWidth: 1)
+                )
+        )
+        .padding(.bottom, 12)
     }
 
     private var messagePanel: some View {
@@ -186,18 +95,11 @@ struct ChatbotWorkspaceView: View {
                             .id("typing-indicator")
                     }
                 }
+                .frame(maxWidth: .infinity, minHeight: 0)
                 .padding(.vertical, 4)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(18)
-            .background(
-                RoundedRectangle(cornerRadius: 30, style: .continuous)
-                    .fill(Color.white.opacity(0.88))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 30, style: .continuous)
-                            .stroke(AppTheme.cardBorder, lineWidth: 1)
-                    )
-            )
+            .scrollDismissesKeyboard(.interactively)
             .onChange(of: viewModel.messages.count) { _ in
                 scrollToBottom(using: proxy)
             }
@@ -217,7 +119,9 @@ struct ChatbotWorkspaceView: View {
 
             HStack(alignment: .bottom, spacing: 12) {
                 TextField(
-                    "Ask about handles, DSA, roadmaps, tutorials, or strategy...",
+                    problem == nil
+                        ? "Ask about handles, DSA, roadmaps, tutorials, or strategy..."
+                        : "Ask for hints, approach, edge cases, or complexity...",
                     text: $viewModel.draftMessage,
                     axis: .vertical
                 )
@@ -245,7 +149,7 @@ struct ChatbotWorkspaceView: View {
                 .opacity(viewModel.draftMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isSending ? 0.6 : 1)
             }
         }
-        .appCard()
+        .padding(.top, 12)
     }
 
     private var typingIndicator: some View {

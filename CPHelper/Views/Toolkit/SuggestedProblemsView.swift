@@ -87,9 +87,17 @@ struct SuggestedProblemsView: View {
     private var headerCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             SectionTitle(title: "Suggested Problems", subtitle: "Primary handle")
-            Text(primaryHandle.isEmpty ? "No primary handle yet." : "@\(primaryHandle)")
-                .font(.system(.headline, design: .rounded).weight(.bold))
-                .foregroundStyle(AppTheme.text)
+            if primaryHandle.isEmpty {
+                Text("No primary handle yet.")
+                    .font(.system(.headline, design: .rounded).weight(.bold))
+                    .foregroundStyle(AppTheme.text)
+            } else {
+                CodeforcesHandleView(
+                    handle: primaryHandle,
+                    rating: viewModel.analysis?.summary.currentRating,
+                    font: .system(.headline, design: .rounded).weight(.bold)
+                )
+            }
         }
         .appCard()
     }

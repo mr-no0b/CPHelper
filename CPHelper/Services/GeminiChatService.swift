@@ -203,6 +203,7 @@ actor GeminiChatService {
         Only help with competitive programming, Codeforces handle analysis, problem analysis, contest preparation, DSA understanding, roadmap planning, and frustration recovery after bad sessions.
         If the user asks for something outside those topics, politely refuse and steer them back to competitive programming.
         Keep answers supportive, practical, and concrete.
+        If an attached problem exists, treat short follow-ups like "hint", "approach", "why", "edge cases", "solve", "this problem", or "it" as referring to that attached problem unless the user clearly switches topics.
         When the user sounds frustrated:
         1. Validate the feeling briefly.
         2. Diagnose the likely reason from the provided handle data if available.

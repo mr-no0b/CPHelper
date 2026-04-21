@@ -37,14 +37,21 @@ struct PracticeListView: View {
                     } else {
                         ForEach(groupedTodos, id: \.handle) { group in
                             VStack(alignment: .leading, spacing: 12) {
-                                Text(group.handle.isEmpty ? "Saved Problems" : "@\(group.handle)")
-                                    .font(.system(.headline, design: .rounded).weight(.bold))
-                                    .foregroundStyle(AppTheme.text)
+                                if group.handle.isEmpty {
+                                    Text("Saved Problems")
+                                        .font(.system(.headline, design: .rounded).weight(.bold))
+                                        .foregroundStyle(AppTheme.text)
+                                } else {
+                                    CodeforcesHandleView(
+                                        handle: group.handle,
+                                        font: .system(.headline, design: .rounded).weight(.bold)
+                                    )
+                                }
 
                                 ForEach(group.items) { todo in
                                     CodeforcesProblemCard(
                                         problem: todo.asCatalogProblem,
-                                        subtitle: todo.handle.isEmpty ? "Saved" : "Saved for @\(todo.handle)",
+                                        subtitle: todo.handle.isEmpty ? "Saved" : "Saved for \(todo.handle)",
                                         isInTodo: true,
                                         todoButtonTitle: "Remove",
                                         todoButtonTint: Color(red: 0.79, green: 0.22, blue: 0.23),

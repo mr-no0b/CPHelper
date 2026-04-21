@@ -24,14 +24,9 @@ struct HomeView: View {
                 .padding(20)
             }
         }
+        .navigationTitle("Home")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Text("Home")
-                    .font(.system(.headline, design: .rounded).weight(.bold))
-                    .foregroundStyle(AppTheme.text)
-            }
-
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     appRouter.openProfile()
@@ -55,12 +50,6 @@ struct HomeView: View {
             Text(sessionStore.currentUser?.fullName ?? "Welcome")
                 .font(.system(size: 32, weight: .bold, design: .rounded))
                 .foregroundStyle(AppTheme.text)
-
-            HStack(spacing: 10) {
-                MetricChip(title: "Primary", value: sessionStore.currentUser?.primaryHandle ?? "Not set")
-                MetricChip(title: "Friends", value: "\(sessionStore.currentUser?.friends.count ?? 0)")
-                MetricChip(title: "Todo", value: "\(sessionStore.currentUser?.todoProblems.count ?? 0)")
-            }
         }
     }
 
@@ -87,9 +76,12 @@ struct HomeView: View {
                         .font(.system(.caption, design: .rounded).weight(.bold))
                         .foregroundStyle(AppTheme.mutedText)
 
-                    Text("@\(handle)")
-                        .font(.system(.title3, design: .rounded).weight(.bold))
-                        .foregroundStyle(AppTheme.text)
+                    CodeforcesHandleView(
+                        handle: handle,
+                        rating: primaryAnalysis?.summary.currentRating,
+                        font: .system(.title3, design: .rounded).weight(.bold),
+                        loadRatingIfNeeded: false
+                    )
 
                     Text(primaryAnalysis?.summary.firstActiveDate.map { DateFormatting.mediumDate.string(from: $0) } ?? "Loading...")
                         .font(.system(.caption, design: .rounded))

@@ -34,17 +34,7 @@ final class ChatbotViewModel: ObservableObject {
         self.preferredHandle = preferredHandle
         self.chatService = chatService
         self.analysisService = analysisService
-
-        let openingLine: String
-        if let problem {
-            openingLine = "Problem context is attached for \(problem.displayID)."
-        } else {
-            openingLine = "Ask about your primary handle, friends, DSA, roadmap, or contests."
-        }
-
-        self.messages = [
-            CPChatMessage(role: .assistant, text: openingLine)
-        ]
+        self.messages = Self.initialMessages(problem: problem)
     }
 
     func prepare(user: UserProfile?) async {
@@ -309,5 +299,27 @@ final class ChatbotViewModel: ObservableObject {
             .replacingOccurrences(of: #"[^a-z0-9\s@._-]"#, with: " ", options: .regularExpression)
             .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func initialMessages(problem: CodeforcesProblem?) -> [CPChatMessage] {
+        guard let problem else { return [] }
+
+        let rating = problem.rating.map(String.init) ?? "Unrated"
+        let tags = {
+            let summary = problem.tags.prefix(3).joined(separator: ", ")
+            return summary.isEmpty ? "No tags" : summary
+        }()
+
+        return [
+            CPChatMessage(
+                role: .assistant,
+                text: """
+                Attached problem: \(problem.displayID) \(problem.name)
+                Rating: \(rating)
+                Tags: \(tags)
+                Ask for hints, approach, edge cases, or complexity for this problem.
+                """
+            )
+        ]
     }
 }

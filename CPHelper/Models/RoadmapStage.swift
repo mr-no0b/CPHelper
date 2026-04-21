@@ -1,6 +1,6 @@
 import Foundation
 
-struct RoadmapStage: Identifiable, Equatable {
+struct RoadmapStage: Identifiable, Hashable {
     let id: String
     let title: String
     let ratingRange: ClosedRange<Int>

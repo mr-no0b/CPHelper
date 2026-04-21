@@ -25,14 +25,8 @@ struct ProfileView: View {
                     .environmentObject(sessionStore)
             }
         }
+        .navigationTitle("Profile")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Text("Profile")
-                    .font(.system(.headline, design: .rounded).weight(.bold))
-                    .foregroundStyle(AppTheme.text)
-            }
-        }
     }
 
     private func profileHeader(user: UserProfile) -> some View {
@@ -55,7 +49,11 @@ struct ProfileView: View {
 
                     HStack(spacing: 8) {
                         if let primaryHandle = user.primaryHandle, !primaryHandle.isEmpty {
-                            InfoBadge(title: "@\(primaryHandle)", tint: AppTheme.accent)
+                            CodeforcesHandleView(
+                                handle: primaryHandle,
+                                style: .badge,
+                                font: .system(.caption, design: .rounded).weight(.bold)
+                            )
                         }
 
                         InfoBadge(title: "\(user.friends.count) friends", tint: AppTheme.accentSecondary)
@@ -79,7 +77,7 @@ struct ProfileView: View {
 
             detailRow(title: "Mobile", value: user.mobileNumber)
             detailRow(title: "University", value: user.universityName.isEmpty ? "Not added" : user.universityName)
-            detailRow(title: "Primary handle", value: user.primaryHandle ?? "Not set")
+            primaryHandleRow(user)
             detailRow(title: "Member since", value: DateFormatting.mediumDate.string(from: user.memberSince))
             detailRow(title: "Saved problems", value: "\(user.todoProblems.count)")
         }
@@ -115,6 +113,27 @@ struct ProfileView: View {
                 .font(.system(.subheadline, design: .rounded).weight(.medium))
                 .foregroundStyle(AppTheme.text)
                 .multilineTextAlignment(.trailing)
+        }
+    }
+
+    private func primaryHandleRow(_ user: UserProfile) -> some View {
+        HStack {
+            Text("Primary handle")
+                .font(.system(.subheadline, design: .rounded).weight(.semibold))
+                .foregroundStyle(AppTheme.mutedText)
+
+            Spacer()
+
+            if let primaryHandle = user.primaryHandle, !primaryHandle.isEmpty {
+                CodeforcesHandleView(
+                    handle: primaryHandle,
+                    font: .system(.subheadline, design: .rounded).weight(.medium)
+                )
+            } else {
+                Text("Not set")
+                    .font(.system(.subheadline, design: .rounded).weight(.medium))
+                    .foregroundStyle(AppTheme.text)
+            }
         }
     }
 }

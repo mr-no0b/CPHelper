@@ -82,6 +82,108 @@ struct InfoBadge: View {
     }
 }
 
+enum CodeforcesRatingPalette {
+    static func tint(for rating: Int?) -> Color {
+        guard let rating else { return AppTheme.text }
+
+        switch rating {
+        case ..<1200:
+            return Color(red: 0.50, green: 0.54, blue: 0.60)
+        case ..<1400:
+            return Color(red: 0.16, green: 0.63, blue: 0.29)
+        case ..<1600:
+            return Color(red: 0.04, green: 0.67, blue: 0.73)
+        case ..<1900:
+            return Color(red: 0.18, green: 0.45, blue: 0.92)
+        case ..<2100:
+            return Color(red: 0.53, green: 0.33, blue: 0.86)
+        case ..<2400:
+            return Color(red: 0.95, green: 0.57, blue: 0.23)
+        default:
+            return Color(red: 0.83, green: 0.22, blue: 0.24)
+        }
+    }
+
+    static func background(for rating: Int?) -> Color {
+        tint(for: rating).opacity(rating == nil ? 0.10 : 0.14)
+    }
+}
+
+struct CodeforcesHandleView: View {
+    enum Style {
+        case plain
+        case badge
+    }
+
+    let handle: String
+    var rating: Int? = nil
+    var style: Style = .plain
+    var font: Font = .system(.headline, design: .rounded).weight(.bold)
+    var loadRatingIfNeeded = true
+
+    @State private var resolvedRating: Int?
+
+    private var effectiveRating: Int? {
+        rating ?? resolvedRating
+    }
+
+    private var tint: Color {
+        CodeforcesRatingPalette.tint(for: effectiveRating)
+    }
+
+    var body: some View {
+        Group {
+            switch style {
+            case .plain:
+                handleText
+            case .badge:
+                handleText
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(
+                        Capsule()
+                            .fill(CodeforcesRatingPalette.background(for: effectiveRating))
+                    )
+            }
+        }
+        .task(id: taskKey) {
+            await resolveRatingIfNeeded()
+        }
+    }
+
+    private var handleText: some View {
+        Text(handle)
+            .font(font)
+            .foregroundStyle(tint)
+    }
+
+    private var taskKey: String {
+        "\(handle.lowercased())::\(rating.map(String.init) ?? "nil")::\(loadRatingIfNeeded)"
+    }
+
+    private func resolveRatingIfNeeded() async {
+        guard loadRatingIfNeeded, rating == nil, !handle.isEmpty else {
+            await MainActor.run {
+                resolvedRating = nil
+            }
+            return
+        }
+
+        do {
+            let analysis = try await CodeforcesAnalysisService.shared.loadAnalysis(for: handle)
+            guard !Task.isCancelled else { return }
+
+            await MainActor.run {
+                resolvedRating = analysis.summary.currentRating
+            }
+        } catch {
+            await MainActor.run {
+                resolvedRating = nil
+            }
+        }
+    }
+}
+
 struct AvatarView: View {
     let title: String
     let imageURL: URL?

@@ -59,9 +59,12 @@ struct HandleAnalysisDashboard: View {
                         .font(.system(.title3, design: .rounded).weight(.bold))
                         .foregroundStyle(AppTheme.text)
 
-                    Text("@\(analysis.handle)")
-                        .font(.system(.subheadline, design: .rounded))
-                        .foregroundStyle(AppTheme.mutedText)
+                    CodeforcesHandleView(
+                        handle: analysis.handle,
+                        rating: analysis.summary.currentRating,
+                        font: .system(.subheadline, design: .rounded),
+                        loadRatingIfNeeded: false
+                    )
                 }
 
                 Spacer()
